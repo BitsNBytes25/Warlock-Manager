@@ -20,6 +20,9 @@ dev = [
     "pytest>=7",
     "pytest-mock>=3",
     "responses>=0.24",
+    "flake8>=7.3.0",
+    "pytest",
+    "pre-commit>=4.5.1",
 ]
 rcon = [
     "rcon>=2.4.9"

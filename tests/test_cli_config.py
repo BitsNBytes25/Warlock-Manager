@@ -36,10 +36,16 @@ class TestCLIConfig(unittest.TestCase):
 			self.assertEqual(data_orig, data_new)
 
 		self.assertTrue(cfg.get_value('RCON Enabled'))
-		self.assertEqual('?SessionName="My Ark Server"?RCONPort=32330?RCONEnabled=True -Flag1=Value1 -Flag2="Some value 2"', str(cfg))
+		self.assertEqual(
+			'?SessionName="My Ark Server"?RCONPort=32330?RCONEnabled=True -Flag1=Value1 -Flag2="Some value 2"',
+			str(cfg)
+		)
 		cfg.set_value('RCON Enabled', False)
 		self.assertFalse(cfg.get_value('RCON Enabled'))
-		self.assertEqual('?SessionName="My Ark Server"?RCONPort=32330?RCONEnabled=False -Flag1=Value1 -Flag2="Some value 2"', str(cfg))
+		self.assertEqual(
+			'?SessionName="My Ark Server"?RCONPort=32330?RCONEnabled=False -Flag1=Value1 -Flag2="Some value 2"',
+			str(cfg)
+		)
 
 	def test_similar_arguments(self):
 		cfg = CLIConfig('test')
@@ -80,11 +86,17 @@ class TestCLIConfig(unittest.TestCase):
 		self.assertEqual(True, cfg.get_value('crossplay'))
 		self.assertEqual('none', cfg.get_value('modifier raids'))
 
-		self.assertEqual('-name "My server" -port 2456 -world Dedicated -password secret -crossplay -modifier raids none', str(cfg))
+		self.assertEqual(
+			'-name "My server" -port 2456 -world Dedicated -password secret -crossplay -modifier raids none',
+			str(cfg)
+		)
 
 		cfg.set_value('crossplay', False)
 		self.assertEqual(False, cfg.get_value('crossplay'))
-		self.assertEqual('-name "My server" -port 2456 -world Dedicated -password secret -modifier raids none', str(cfg))
+		self.assertEqual(
+			'-name "My server" -port 2456 -world Dedicated -password secret -modifier raids none',
+			str(cfg)
+		)
 
 		cfg.set_value('crossplay', True)
 		self.assertEqual(True, cfg.get_value('crossplay'))

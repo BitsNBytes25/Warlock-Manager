@@ -1,14 +1,11 @@
 import sys
-from typing import Union
 from rcon.source import Client
-from rcon import SessionTimeout
-from rcon.exceptions import WrongPassword
 
 from warlock_manager.services.base_service import BaseService
 
 
 class RCONService(BaseService):
-	def _api_cmd(self, cmd) -> Union[None,str]:
+	def _api_cmd(self, cmd) -> None | str:
 		"""
 		Execute a raw command with RCON and return the result
 

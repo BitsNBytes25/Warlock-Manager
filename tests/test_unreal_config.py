@@ -1,11 +1,9 @@
-import sys
 import os
+import unittest
 
 from warlock_manager.config.unreal_config import UnrealConfig
 
 here = os.path.dirname(os.path.realpath(__file__))
-
-import unittest
 
 
 class TestUnrealConfig(unittest.TestCase):
@@ -158,11 +156,36 @@ PlayedMaps=NewMap2_WP
 
     def test_palworld(self):
         cfg = UnrealConfig('test', os.path.join(here, 'data', 'unreal_palworld.ini'))
-        cfg.add_option('Difficulty', '/Script/Pal.PalGameWorldSettings', 'OptionSettings/Difficulty', val_type='str')
-        cfg.add_option('Randomizer Seed', '/Script/Pal.PalGameWorldSettings', 'OptionSettings/RandomizerSeed', val_type='str')
-        cfg.add_option('Randomizer Pal Level Random', '/Script/Pal.PalGameWorldSettings', 'OptionSettings/bIsRandomizerPalLevelRandom', val_type='bool')
-        cfg.add_option('Day Time Speed Rate', '/Script/Pal.PalGameWorldSettings', 'OptionSettings/DayTimeSpeedRate', val_type='float')
-        cfg.add_option('Crossplay Platforms', '/Script/Pal.PalGameWorldSettings', 'OptionSettings/CrossplayPlatforms', val_type='list')
+        cfg.add_option(
+            'Difficulty',
+            '/Script/Pal.PalGameWorldSettings',
+            'OptionSettings/Difficulty',
+            val_type='str'
+        )
+        cfg.add_option(
+            'Randomizer Seed',
+            '/Script/Pal.PalGameWorldSettings',
+            'OptionSettings/RandomizerSeed',
+            val_type='str'
+        )
+        cfg.add_option(
+            'Randomizer Pal Level Random',
+            '/Script/Pal.PalGameWorldSettings',
+            'OptionSettings/bIsRandomizerPalLevelRandom',
+            val_type='bool'
+        )
+        cfg.add_option(
+            'Day Time Speed Rate',
+            '/Script/Pal.PalGameWorldSettings',
+            'OptionSettings/DayTimeSpeedRate',
+            val_type='float'
+        )
+        cfg.add_option(
+            'Crossplay Platforms',
+            '/Script/Pal.PalGameWorldSettings',
+            'OptionSettings/CrossplayPlatforms',
+            val_type='list'
+        )
         cfg.load()
 
         self.assertEqual(cfg.get_value('Difficulty'), 'None')
@@ -181,10 +204,30 @@ PlayedMaps=NewMap2_WP
         :return:
         """
         cfg = UnrealConfig('test', '')
-        cfg.add_option('Randomizer Seed', '/Script/Pal.PalGameWorldSettings', 'OptionSettings/RandomizerSeed', val_type='str')
-        cfg.add_option('Randomizer Pal Level Random', '/Script/Pal.PalGameWorldSettings', 'OptionSettings/bIsRandomizerPalLevelRandom', val_type='bool')
-        cfg.add_option('Day Time Speed Rate', '/Script/Pal.PalGameWorldSettings', 'OptionSettings/DayTimeSpeedRate', val_type='float')
-        cfg.add_option('Crossplay Platforms', '/Script/Pal.PalGameWorldSettings', 'OptionSettings/CrossplayPlatforms', val_type='list')
+        cfg.add_option(
+            'Randomizer Seed',
+            '/Script/Pal.PalGameWorldSettings',
+            'OptionSettings/RandomizerSeed',
+            val_type='str'
+        )
+        cfg.add_option(
+            'Randomizer Pal Level Random',
+            '/Script/Pal.PalGameWorldSettings',
+            'OptionSettings/bIsRandomizerPalLevelRandom',
+            val_type='bool'
+        )
+        cfg.add_option(
+            'Day Time Speed Rate',
+            '/Script/Pal.PalGameWorldSettings',
+            'OptionSettings/DayTimeSpeedRate',
+            val_type='float'
+        )
+        cfg.add_option(
+            'Crossplay Platforms',
+            '/Script/Pal.PalGameWorldSettings',
+            'OptionSettings/CrossplayPlatforms',
+            val_type='list'
+        )
 
         cfg.set_value('Randomizer Seed', 'Random Seed')
         cfg.set_value('Randomizer Pal Level Random', True)
@@ -193,7 +236,7 @@ PlayedMaps=NewMap2_WP
 
         expected = '''[/Script/Pal.PalGameWorldSettings]
 OptionSettings=(RandomizerSeed="Random Seed",bIsRandomizerPalLevelRandom=True,DayTimeSpeedRate=1.500000,CrossplayPlatforms=(Steam,Epic))
-'''
+'''  # noqa: E501
         self.assertEqual(expected, cfg.fetch())
 
     def test_ark(self):

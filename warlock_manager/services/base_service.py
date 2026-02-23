@@ -24,7 +24,7 @@ class BaseService(ABC):
 		self.service = service
 		"""
 		Name of the service, must match the systemd service name for this instance
-		
+
 		example: `/etc/systemd/system/minecraft.service` would be `minecraft`
 		"""
 
@@ -36,14 +36,14 @@ class BaseService(ABC):
 
 		self.configured = False
 		"""
-		Set to True after configuration files have been loaded successfully, 
+		Set to True after configuration files have been loaded successfully,
 		used to prevent saving configs before they're loaded
 		"""
 
 		self.configs = {}
 		"""
 		Key-value pair of configuration file instances for this service
-		
+
 		Each service should have its own key with the value being the ConfigHandler for that appropriate type.
 		"""
 
@@ -387,7 +387,6 @@ class BaseService(ABC):
 		"""
 		return self._get_exec_status('ExecStartPre')
 
-
 	def _get_exec_status(self, lookup: str) -> dict | None:
 		"""
 		Get the ExecStartPre status of the service
@@ -408,7 +407,7 @@ class BaseService(ABC):
 
 		output = subprocess.run([
 			'systemctl', 'show', '-p', lookup, self.service
-		], stdout=subprocess.PIPE).stdout.decode().strip()[len(lookup)+1:]
+		], stdout=subprocess.PIPE).stdout.decode().strip()[len(lookup) + 1:]
 		if output == '':
 			return None
 
@@ -798,7 +797,7 @@ class BaseService(ABC):
 		:return:
 		"""
 
-		if not action in ['stop', 'restart']:
+		if action not in ['stop', 'restart']:
 			print('ERROR - Invalid action for delayed action: %s' % action, file=sys.stderr)
 			return
 

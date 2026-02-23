@@ -2,7 +2,7 @@ import os
 import sys
 from typing import Union
 import yaml
-from abc import ABC, abstractmethod
+from abc import ABC
 
 
 class BaseConfig(ABC):
@@ -11,7 +11,7 @@ class BaseConfig(ABC):
 		"""
 		:type dict<str, tuple<str, str, str, str, str>>
 		Primary dictionary of all options on this config
-		
+
 		* Item 0: Section
 		* Item 1: Key
 		* Item 2: Default Value

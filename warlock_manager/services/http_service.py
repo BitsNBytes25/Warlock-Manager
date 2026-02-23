@@ -7,7 +7,6 @@ from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.services.base_service import BaseService
 
 
-
 class HTTPService(BaseService):
 
 	def __init__(self, service: str, game: BaseApp):

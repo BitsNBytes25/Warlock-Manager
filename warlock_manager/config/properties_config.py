@@ -139,6 +139,3 @@ class PropertiesConfig(BaseConfig):
 
 		if os.geteuid() == 0 and uid is not None and gid is not None:
 			os.chown(self.path, uid, gid)
-
-
-

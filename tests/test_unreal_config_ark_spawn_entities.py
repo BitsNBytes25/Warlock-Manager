@@ -1,10 +1,9 @@
 import os
+import unittest
 
 from warlock_manager.config.unreal_config import UnrealConfig
 
 here = os.path.dirname(os.path.realpath(__file__))
-
-import unittest
 
 
 class TestUnrealConfigArkSpawnEntities(unittest.TestCase):

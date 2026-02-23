@@ -2,6 +2,7 @@ import os
 import readline
 from typing import Union
 
+
 def print_header(title: str, width: int = 80, clear: bool = False) -> None:
 	"""
 	Prints a formatted header with a title and optional subtitle.
@@ -43,8 +44,7 @@ def prompt_text(prompt: str = 'Enter text: ', default: str = '', prefill: bool =
 	else:
 		ret = input(prompt).strip()
 		return default if ret == '' else ret
-##
-# Simple Yes/No prompt function for shell scripts
+
 
 def prompt_yn(prompt: str = 'Yes or no?', default: str = 'y') -> bool:
 	"""
@@ -94,7 +94,7 @@ class Table:
 		self.align = []
 		"""
 		Alignment for each column, l = left, c = center, r = right
-		
+
 		eg: if a table has 3 columns and the first and last should be right aligned:
 		table.align = ['r', 'l', 'r']
 		"""

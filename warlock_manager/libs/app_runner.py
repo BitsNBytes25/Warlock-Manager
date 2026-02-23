@@ -65,8 +65,8 @@ def app_runner(game: BaseApp):
 		Path,
 		typer.Argument(
 			help='Path to backup to restore from',
-			exists = True,
-			readable = True
+			exists=True,
+			readable=True
 		)
 	]
 

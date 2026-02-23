@@ -1,0 +1,6 @@
+[flake8]
+max-line-length = 120
+indent-size = 1
+tab-width = 1
+select = C,E,F,W
+ignore = E101,W191,E126

@@ -43,7 +43,7 @@ class BaseApp(ABC):
 
 		self.configs = {}
 		"""
-		:type dict<str, BaseConfig>: 
+		:type dict<str, BaseConfig>:
 		Dictionary of configuration files for this game
 		"""
 
@@ -287,7 +287,7 @@ class BaseApp(ABC):
 		:return:
 		"""
 
-		if not action in ['stop', 'restart', 'update']:
+		if action not in ['stop', 'restart', 'update']:
 			print('ERROR - Invalid action for delayed action: %s' % action, file=sys.stderr)
 			return
 
@@ -420,12 +420,15 @@ class BaseApp(ABC):
 		print('Sending to discord: ' + message)
 		req = request.Request(
 			self.get_option_value('Discord Webhook URL'),
-			headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0'},
+			headers={
+				'Content-Type': 'application/json',
+				'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0'
+			},
 			method='POST'
 		)
 		data = json.dumps({'content': message}).encode('utf-8')
 		try:
-			with request.urlopen(req, data=data) as resp:
+			with request.urlopen(req, data=data):
 				pass
 		except urllib_error.HTTPError as e:
 			print('Could not notify Discord: %s' % e)
