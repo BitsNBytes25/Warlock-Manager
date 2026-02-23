@@ -1,19 +1,16 @@
-import os
 import sys
 from typing import Union
+import json
 
 from warlock_manager.config.base_config import BaseConfig
 
 
-class PropertiesConfig(BaseConfig):
-	"""
-	Configuration handler for Java-style .properties files
-	"""
-
+class JSONConfig(BaseConfig):
 	def __init__(self, group_name: str, path: str):
 		super().__init__(group_name)
 		self.path = path
-		self.values = {}
+		self.group = group_name
+		self.data = {}
 
 	def get_value(self, name: str) -> Union[str, int, bool]:
 		"""
@@ -29,8 +26,18 @@ class PropertiesConfig(BaseConfig):
 		key = self.options[name][1]
 		default = self.options[name][2]
 		val_type = self.options[name][3]
-		val = self.values.get(key, default)
-		return BaseConfig.convert_to_system_type(val, val_type)
+
+		lookup = self.data
+		if key.startswith('/'):
+			key = key[1:]
+		for part in key.split('/'):
+			if part in lookup:
+				lookup = lookup[part]
+			else:
+				lookup = default
+				break
+
+		return BaseConfig.convert_to_system_type(lookup, val_type)
 
 	def set_value(self, name: str, value: Union[str, int, bool]):
 		"""
@@ -46,9 +53,24 @@ class PropertiesConfig(BaseConfig):
 
 		key = self.options[name][1]
 		val_type = self.options[name][3]
-		str_value = BaseConfig.convert_from_system_type(value, val_type)
 
-		self.values[key] = str_value
+		# JSON files can store native types, so convert value accordingly
+		value = BaseConfig.convert_to_system_type(value, val_type)
+
+		if key.startswith('/'):
+			key = key[1:]
+		lookup = self.data
+		parts = key.split('/')
+		counter = 0
+		for part in parts:
+			counter += 1
+
+			if counter == len(parts):
+				lookup[part] = value
+			else:
+				if part not in lookup:
+					lookup[part] = {}
+				lookup = lookup[part]
 
 	def has_value(self, name: str) -> bool:
 		"""
@@ -61,7 +83,17 @@ class PropertiesConfig(BaseConfig):
 			return False
 
 		key = self.options[name][1]
-		return self.values.get(key, '') != ''
+
+		lookup = self.data
+		if key.startswith('/'):
+			key = key[1:]
+		for part in key.split('/'):
+			if part in lookup:
+				lookup = lookup[part]
+			else:
+				return False
+
+		return lookup != ''
 
 	def exists(self) -> bool:
 		"""
@@ -75,36 +107,19 @@ class PropertiesConfig(BaseConfig):
 		Load the configuration file from disk
 		:return:
 		"""
-		if not os.path.exists(self.path):
-			# File does not exist, nothing to load
-			return
-
-		with open(self.path, 'r') as cfgfile:
-			for line in cfgfile:
-				line = line.strip()
-				if line == '' or line.startswith('#') or line.startswith('!'):
-					# Skip empty lines and comments
-					continue
-				if '=' in line:
-					key, value = line.split('=', 1)
-					key = key.strip()
-					value = value.strip()
-					# Un-escape characters
-					value = value.replace('\\:', ':')
-					self.values[key] = value
-				else:
-					# Handle lines without '=' as keys with empty values
-					key = line.strip()
-					self.values[key] = ''
+		if os.path.exists(self.path):
+			with open(self.path, 'r') as f:
+				self.data = json.load(f)
 
 	def save(self):
 		"""
 		Save the configuration file back to disk
 		:return:
 		"""
+		with open(self.path, 'w') as f:
+			json.dump(self.data, f, indent=4)
+
 		# Change ownership to game user if running as root
-		uid = None
-		gid = None
 		if os.geteuid() == 0:
 			# Determine game user based on parent directories
 			check_path = os.path.dirname(self.path)
@@ -113,32 +128,6 @@ class PropertiesConfig(BaseConfig):
 					stat_info = os.stat(check_path)
 					uid = stat_info.st_uid
 					gid = stat_info.st_gid
+					os.chown(self.path, uid, gid)
 					break
 				check_path = os.path.dirname(check_path)
-
-		# Ensure directory exists
-		# This can't just be a simple os.makedirs call since we need to set ownership
-		# on each created directory if running as root
-		if not os.path.exists(os.path.dirname(self.path)):
-			paths = os.path.dirname(self.path).split('/')
-			check_path = ''
-			for part in paths:
-				if part == '':
-					continue
-				check_path += '/' + part
-				if not os.path.exists(check_path):
-					os.mkdir(check_path, 0o755)
-					if os.geteuid() == 0 and uid is not None and gid is not None:
-						os.chown(check_path, uid, gid)
-
-		with open(self.path, 'w') as cfgfile:
-			for key, value in self.values.items():
-				# Escape '%' characters that may be present
-				escaped_value = value.replace(':', '\\:')
-				cfgfile.write(f'{key}={escaped_value}\n')
-
-		if os.geteuid() == 0 and uid is not None and gid is not None:
-			os.chown(self.path, uid, gid)
-
-
-

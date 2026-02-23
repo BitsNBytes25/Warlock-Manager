@@ -1,58 +1,97 @@
-from typing import Any
+import json
+import base64
+import sys
+from urllib import request
 
-import requests
+from warlock_manager.apps.base_app import BaseApp
+from warlock_manager.services.base_service import BaseService
 
-from .base_service import BaseService, ServiceStatus
 
 
-class HttpService(BaseService):
-    """Service that communicates over HTTP/HTTPS."""
+class HTTPService(BaseService):
 
-    def __init__(
-        self,
-        name: str,
-        base_url: str,
-        headers: dict[str, str] | None = None,
-        timeout: float = 10.0,
-    ):
-        super().__init__(name)
-        self.base_url = base_url.rstrip("/")
-        self.headers = headers or {}
-        self.timeout = timeout
-        self._session = requests.Session()
-        self._session.headers.update(self.headers)
+	def __init__(self, service: str, game: BaseApp):
+		super().__init__(service, game)
 
-    def start(self) -> None:
-        """Mark the service as running and verify connectivity."""
-        try:
-            self._session.get(self.base_url, timeout=self.timeout)
-            self._status = ServiceStatus.RUNNING
-            self.logger.info("%s is reachable at %s.", self.name, self.base_url)
-        except requests.RequestException as exc:
-            self._status = ServiceStatus.ERROR
-            self.logger.error("Failed to reach %s: %s", self.base_url, exc)
-            raise
+	def _api_cmd(self, cmd: str, method: str = 'GET', data: dict = None):
+		method = method.upper()
 
-    def stop(self) -> None:
-        """Close the HTTP session."""
-        self._session.close()
-        self._session = requests.Session()
-        self._session.headers.update(self.headers)
-        self._status = ServiceStatus.STOPPED
-        self.logger.info("%s session closed.", self.name)
+		if not (self.is_running() or self.is_starting() or self.is_stopping()):
+			# If service is not running, don't even try to connect.
+			return None
 
-    def get(self, path: str = "", **kwargs: Any) -> requests.Response:
-        """Perform a GET request."""
-        url = f"{self.base_url}/{path.lstrip('/')}" if path else self.base_url
-        return self._session.get(url, timeout=self.timeout, **kwargs)
+		if not self.is_api_enabled():
+			# No REST API enabled, unable to retrieve any data
+			return None
 
-    def post(self, path: str = "", **kwargs: Any) -> requests.Response:
-        """Perform a POST request."""
-        url = f"{self.base_url}/{path.lstrip('/')}" if path else self.base_url
-        return self._session.post(url, timeout=self.timeout, **kwargs)
+		headers = {
+			'Content-Type': 'application/json; charset=utf-8',
+			'Accept': 'application/json',
+		}
 
-    def __repr__(self) -> str:
-        return (
-            f"HttpService(name={self.name!r}, base_url={self.base_url!r}, "
-            f"status={self._status!r})"
-        )
+		# Some games require authentication for HTTP access, so tap in a Basic auth if present.
+		password = self.get_api_password()
+		username = self.get_api_username()
+		if password is not None and password != '':
+			if username is not None and username != '':
+				# Basic Auth
+				credentials = ('%s:%s' % (username, password)).encode('utf-8')
+				base64_credentials = base64.b64encode(credentials).decode('ascii')
+				headers['Authorization'] = 'Basic %s' % base64_credentials
+			else:
+				# Bearer Token Auth
+				headers['Authorization'] = 'Bearer %s' % password
+
+		req = request.Request(
+			'http://127.0.0.1:%s%s' % (str(self.get_api_port()), cmd),
+			headers=headers,
+			method=method
+		)
+		try:
+			if method == 'POST' and data is not None:
+				data = bytearray(json.dumps(data), 'utf-8')
+				req.add_header('Content-Length', str(len(data)))
+				with request.urlopen(req, data, timeout=2) as resp:
+					ret = resp.read().decode('utf-8')
+					if ret == '':
+						return None
+					else:
+						return json.loads(ret)
+			else:
+				with request.urlopen(req, timeout=2) as resp:
+					ret = resp.read().decode('utf-8')
+					if ret == '':
+						return None
+					else:
+						return json.loads(ret)
+		except Exception as e:
+			print(str(e), file=sys.stderr)
+			return None
+
+	def is_api_enabled(self) -> bool:
+		"""
+		Check if HTTP API is enabled for this service
+		:return:
+		"""
+		pass
+
+	def get_api_port(self) -> int:
+		"""
+		Get the HTTP API port from the service configuration
+		:return:
+		"""
+		pass
+
+	def get_api_password(self) -> str:
+		"""
+		Get the API password from the service configuration
+		:return:
+		"""
+		pass
+
+	def get_api_username(self) -> str:
+		"""
+		Get the API username from the service configuration
+		:return:
+		"""
+		pass

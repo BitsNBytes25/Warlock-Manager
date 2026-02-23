@@ -1,0 +1,537 @@
+import sys
+import os
+import re
+import tempfile
+from typing import Union
+
+from warlock_manager.config.base_config import BaseConfig
+
+
+class UnrealConfig(BaseConfig):
+	def __init__(self, group_name: str, path: str):
+		super().__init__(group_name)
+		self.path = path
+		self._data = []
+		self._values = {}
+		self._use_array_operators = False
+		self._is_changed = False
+
+	def get_value(self, name: str) -> Union[str, int, bool, list]:
+		"""
+		Get a configuration option from the config
+
+		:param name: Name of the option
+		:return:
+		"""
+		if name not in self.options:
+			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
+			return ''
+
+		section = self.options[name][0]
+		key = self.options[name][1]
+		default = self.options[name][2]
+		val_type = self.options[name][3]
+		if section not in self._values:
+			val = default
+		else:
+			if '/' in key:
+				# Struct key
+				parts = key.split('/')
+				current = self._values[section]
+				for part in parts:
+					if part in current:
+						current = current[part]
+					else:
+						current = default
+						break
+				val = current
+			elif key not in self._values[section]:
+				val = default
+			else:
+				val = self._values[section][key]
+
+		return BaseConfig.convert_to_system_type(val, val_type)
+
+	def _find_or_create_value(self, section: list, key: str, str_value: Union[str, list]) -> list:
+		"""
+		Find or create a keyvalue in a given section
+		and return the full section data.
+
+		:param section:
+		:param key:
+		:param str_value:
+		:return:
+		"""
+		found = False
+		new_data = []
+		for item in section:
+			if item['type'] == 'keyvalue' and item['key'] == key:
+				if found:
+					# This key has already been handled, so skip any more of them.
+					continue
+				if isinstance(str_value, list):
+					# Multiple values, need to handle duplicates
+					c = 0
+					for val in str_value:
+						if c > 0 and self._use_array_operators:
+							new_data.append({'type': 'keyvalue', 'key': key, 'value': val, 'op': '+'})
+						else:
+							new_data.append({'type': 'keyvalue', 'key': key, 'value': val})
+						c += 1
+				else:
+					# Simple value
+					new_data.append({'type': 'keyvalue', 'key': key, 'value': str_value})
+				found = True
+			else:
+				new_data.append(item)
+		if not found:
+			new_data.append({'type': 'keyvalue', 'key': key, 'value': str_value})
+
+		return new_data
+
+	def _find_or_create_struct_value(self, section: list, key: str, str_value: Union[str, list]) -> list:
+		"""
+		Find or create an idividual struct keyvalue in a given section
+		and return the full section data.
+
+		:param section:
+		:param key:
+		:param str_value:
+		:return:
+		"""
+		found = False
+		group = key.split('/')[0]
+		key = key.split('/')[1]
+		new_data = []
+
+		for item in section:
+			if item['type'] == 'keystruct' and item['key'] == group:
+				if found:
+					# This key has already been handled, so skip any more of them.
+					continue
+				else:
+					# Update the struct value
+					struct_data = item['value']
+					struct_data[key] = str_value
+					new_data.append({'type': 'keystruct', 'key': group, 'value': struct_data})
+					found = True
+			else:
+				new_data.append(item)
+		if not found:
+			struct_data = {key: str_value}
+			new_data.append({'type': 'keystruct', 'key': group, 'value': struct_data})
+
+		return new_data
+
+	def set_value(self, name: str, value: Union[str, int, bool, list, float]):
+		"""
+		Set a configuration option in the config
+
+		:param name: Name of the option
+		:param value: Value to save
+		:return:
+		"""
+		if name not in self.options:
+			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
+			return
+
+		section = self.options[name][0]
+		key = self.options[name][1]
+		val_type = self.options[name][3]
+		str_value = BaseConfig.convert_from_system_type(value, val_type)
+
+		if section not in self._values:
+			# Create the section
+			self._values[section] = {}
+			self._data.append([{'type': 'section', 'value': section}])
+
+		# Ensure the updated value is in the data structure
+		# First, find the section in the data
+		new_data = []
+		for sec in self._data:
+			if sec[0]['type'] == 'section' and sec[0]['value'] == section:
+				if '/' in key:
+					# Struct key
+					new_data.append(self._find_or_create_struct_value(sec, key, str_value))
+				else:
+					# Found it, add the keyvalue or update existing
+					new_data.append(self._find_or_create_value(sec, key, str_value))
+			else:
+				# Not matched, but keep the data
+				new_data.append(sec)
+
+		self._data = new_data
+		self._values[section][key] = str_value
+		self._is_changed = True
+
+	def has_value(self, name: str) -> bool:
+		"""
+		Check if a configuration option has been set
+
+		:param name: Name of the option
+		:return:
+		"""
+		if name not in self.options:
+			return False
+
+		section = self.options[name][0]
+		key = self.options[name][1]
+		if section not in self._values:
+			return False
+		else:
+			if key not in self._values[section]:
+				return False
+			else:
+				return self._values[section][key] != ''
+
+	def exists(self) -> bool:
+		"""
+		Check if the config file exists on disk
+		:return:
+		"""
+		return os.path.exists(self.path)
+
+	def load(self):
+		"""
+		Load the configuration file from disk
+		:return:
+		"""
+		if os.path.exists(self.path):
+			with open(self.path, 'r', encoding='utf-8') as f:
+				section = []
+				last_section = ''
+				for line in f.readlines():
+					data = None
+					stripped = line.strip()
+					if stripped == '':
+						continue
+					elif stripped.startswith(';'):
+						# Comment line
+						data = {'type': 'comment', 'value': stripped[1:].strip()}
+					elif stripped.startswith('[') and stripped.endswith(']'):
+						# Section header
+						data = {'type': 'section', 'value': stripped[1:-1].strip()}
+					elif '=' in stripped:
+						# Key-value pair
+						parts = stripped.split('=', 1)
+						key = parts[0].strip()
+						value = parts[1].strip()
+						if key.startswith('+'):
+							# Array operator detected
+							self._use_array_operators = True
+							op = key[0]
+							key = key[1:].strip()
+							data = {'type': 'keyvalue', 'key': key, 'value': value, 'op': op}
+						elif value.startswith('(') and value.endswith(')'):
+							# Struct detected
+							struct_str = value[1:-1].strip()
+							struct_data = self._parse_struct(struct_str)
+							data = {'type': 'keystruct', 'key': key, 'value': struct_data[0]}
+						else:
+							data = {'type': 'keyvalue', 'key': key, 'value': value}
+
+					if data is not None:
+						if data['type'] == 'section':
+							# New section!
+							if len(section) > 0:
+								self._data.append(section)
+							section = []
+							section.append(data)
+							last_section = data['value']
+						elif data['type'] == 'keystruct':
+							section.append(data)
+							if last_section not in self._values:
+								self._values[last_section] = {}
+							self._values[last_section][data['key']] = data['value']
+						elif data['type'] == 'keyvalue':
+							section.append(data)
+							if last_section not in self._values:
+								self._values[last_section] = {}
+							# Auto-handle duplicate keys by converting them to a list.
+							# UE is weird.
+							if data['key'] in self._values[last_section]:
+								# Existing key, convert to list
+								existing_value = self._values[last_section][data['key']]
+								if not isinstance(existing_value, list):
+									existing_value = [existing_value]
+								existing_value.append(data['value'])
+								self._values[last_section][data['key']] = existing_value
+							else:
+								self._values[last_section][data['key']] = data['value']
+						else:
+							section.append(data)
+				if len(section) > 0:
+					self._data.append(section)
+		self._is_changed = False
+
+	def _require_escaping(self, s):
+		"""
+		Simple check to see if a given value should require escaping.
+
+		:param s:
+		:return:
+		"""
+
+		if isinstance(s, int):
+			# ints do not require escaping
+			return False
+		elif isinstance(s, float):
+			# floats do not require escaping
+			return False
+		elif isinstance(s, bool):
+			# Boolean values do not require escaping
+			return False
+
+		# Strings that match basic numbers do not require quoting
+		if re.match(r'^[+-]?\d+(?:\.\d+)?$', s) is not None:
+			return False
+
+		if s == '':
+			# Empty values always require quoting
+			return True
+
+		if s == 'True' or s == 'False':
+			# Boolean strings do not require quoting
+			return False
+
+		if re.match(r'^[A-Za-z0-9]+$', s) is not None:
+			# Simple strings do not require quoting
+			return False
+
+		# Default mode for strings is to escape them.
+		return True
+
+	def _parse_struct(self, struct_str: str) -> tuple[dict, int]:
+		"""
+		Parse a UE struct string into a dictionary
+
+		Returns a list with the dictionary and the number of characters parsed.
+
+		The dictionary is the parsed data and the characters parsed is suitable for jumping ahead in the parent string.
+
+		:param struct_str:
+		:return:
+		"""
+		result = {}
+		key = ''
+		buffer = ''
+		quote = None
+		in_key = False
+		counter = 0
+		while counter < len(struct_str):
+			c = struct_str[counter]
+			counter += 1
+			if c in ('"', "'") and quote is None:
+				# Quote start
+				quote = c
+				continue
+			elif quote is not None and c == quote:
+				# Quote end
+				quote = None
+				continue
+			elif quote is not None:
+				# Quoted text, (skip parsing)
+				buffer += c
+				continue
+
+			if c == '(':
+				# Nested group start, recursively drop into it in a new parser.
+				sub_struct, jump = self._parse_struct(struct_str[counter:])
+				counter += jump
+				if key == '':
+					# This is a list of values, not a dictionary.
+					if isinstance(result, dict) and len(result) == 0:
+						result = []
+
+					if isinstance(result, list):
+						result.append(sub_struct)
+				else:
+					result[key] = sub_struct
+
+				key = ''
+				in_key = False
+				continue
+			elif c == ')':
+				# End of group
+				if key == '' and buffer != '':
+					# This is a list of values, not a dictionary.
+					if isinstance(result, dict) and len(result) == 0:
+						result = []
+
+					if isinstance(result, list):
+						result.append(buffer)
+				elif in_key:
+					result[key] = buffer
+				# End of struct, this indicates the end of the current node we are scanning.
+				return result, counter
+			elif c == '=' and buffer != '':
+				key = buffer
+				buffer = ''
+				in_key = True
+			elif c == ',':
+				if key == '' and buffer != '':
+					# This is a list of values, not a dictionary.
+					if isinstance(result, dict) and len(result) == 0:
+						result = []
+
+					if isinstance(result, list):
+						result.append(buffer)
+				elif in_key:
+					result[key] = buffer
+
+				in_key = False
+				key = ''
+				buffer = ''
+			else:
+				buffer += c
+		if key != '':
+			result[key] = buffer
+		return result, counter
+
+	def _pack_struct(self, struct_data: Union[dict, list]) -> str:
+		"""
+		Pack a dictionary into a UE struct string
+
+		:param struct_data:
+		:return:
+		"""
+		parts = []
+		if isinstance(struct_data, list):
+			# List of values
+			for value in struct_data:
+				if isinstance(value, dict):
+					val_str = self._pack_struct(value)
+				elif self._require_escaping(value):
+					# This string requires quoting
+					val_str = '"%s"' % value.replace('"', '\\"')
+				else:
+					# Default for structs is no quoted values.
+					val_str = str(value)
+				parts.append(val_str)
+			return '(' + ','.join(parts) + ')'
+		else:
+			for key in struct_data:
+				value = struct_data[key]
+				if isinstance(value, list):
+					val_str = self._pack_struct(value)
+				elif isinstance(value, dict):
+					val_str = self._pack_struct(value)
+				elif self._require_escaping(value):
+					# This string requires quoting
+					val_str = '"%s"' % value.replace('"', '\\"')
+				else:
+					# Default for structs is no quoted values.
+					val_str = str(value)
+				parts.append('%s=%s' % (key, val_str))
+			return '(' + ','.join(parts) + ')'
+
+	def fetch(self) -> str:
+		"""
+		Render the configuration file to a string, used in saving back to the disk.
+
+		:return:
+		"""
+		output_lines = []
+		for section in self._data:
+			for item in section:
+				if item['type'] == 'comment':
+					output_lines.append('; %s' % item['value'])
+				elif item['type'] == 'section':
+					if len(output_lines) > 0:
+						output_lines.append('')  # Blank line before new section
+					output_lines.append('[%s]' % item['value'])
+				elif item['type'] == 'keyvalue':
+					if 'op' in item:
+						output_lines.append('%s%s=%s' % (item['op'], item['key'], item['value']))
+					else:
+						output_lines.append('%s=%s' % (item['key'], item['value']))
+				elif item['type'] == 'keystruct':
+					struct_str = self._pack_struct(item['value'])
+					output_lines.append('%s=%s' % (item['key'], struct_str))
+		return '\n'.join(output_lines).strip() + '\n'
+
+	def save(self):
+		"""
+		Save the configuration file back to disk
+		:return:
+		"""
+		if not self._is_changed:
+			# No changes, skip save
+			return
+
+		gid = None
+		uid = None
+		chown = False
+
+		if os.geteuid() == 0:
+			# Determine game user based on parent directories
+			check_path = os.path.dirname(self.path)
+			while check_path != '/' and check_path != '':
+				if os.path.exists(check_path):
+					stat_info = os.stat(check_path)
+					uid = stat_info.st_uid
+					gid = stat_info.st_gid
+					chown = True
+					break
+				check_path = os.path.dirname(check_path)
+
+		# Prepare atomic write to a temporary file in the same directory
+		dirname = os.path.dirname(self.path) or '.'
+		temp_file = None
+		try:
+			# Determine mode to use for the new file. If target exists use its mode, otherwise default to 0o644
+			if os.path.exists(self.path):
+				target_mode = os.stat(self.path).st_mode & 0o777
+			else:
+				# Try to inherit from parent dir if possible
+				try:
+					parent_mode = os.stat(dirname).st_mode & 0o777
+					# Use a sensible default based on parent directory while respecting the process umask.
+					prev_umask = os.umask(0)
+					try:
+						target_mode = parent_mode & (~prev_umask)
+					finally:
+						# Restore the previous umask immediately
+						os.umask(prev_umask)
+				except Exception:
+					target_mode = 0o644
+
+			# Create a NamedTemporaryFile in same directory; do not delete automatically
+			tf = tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=dirname, delete=False)
+			temp_file = tf.name
+			try:
+				# Write contents and flush to disk
+				tf.write(self.fetch())
+				tf.flush()
+				os.fsync(tf.fileno())
+			finally:
+				tf.close()
+
+			# Set permissions on the temp file to match target_mode
+			try:
+				os.chmod(temp_file, target_mode)
+			except Exception:
+				# chmod failure is non-fatal, proceed
+				pass
+
+			# Atomically replace target with temp file
+			os.replace(temp_file, self.path)
+			temp_file = None
+
+			# Restore ownership if required
+			if chown and uid is not None and gid is not None:
+				try:
+					os.chown(self.path, uid, gid)
+				except PermissionError:
+					# If we can't chown, proceed silently
+					pass
+			# Mark as clean
+			self._is_changed = False
+		except Exception:
+			# Cleanup temporary file on error
+			if temp_file and os.path.exists(temp_file):
+				try:
+					os.unlink(temp_file)
+				except Exception:
+					pass
+			raise
