@@ -7,7 +7,8 @@ import time
 from abc import ABC
 from urllib import request
 from urllib import error as urllib_error
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
 if TYPE_CHECKING:
 	from warlock_manager.services.base_service import BaseService
 
@@ -44,7 +45,7 @@ class BaseApp(ABC):
 		Cached list of service instances for this game
 		"""
 
-		self.service: 'BaseService' = None
+		self.service_handler: 'BaseService' = None
 		"""
 		Specific service to handle for this specific game
 		"""
@@ -363,21 +364,21 @@ class BaseApp(ABC):
 					print('Starting %s' % service.service)
 					service.start()
 
-	def get_services(self) -> list:
+	def get_services(self) -> list['BaseService']:
 		"""
 		Get a dictionary of available services (instances) for this game
 
 		:return:
 		"""
 		if self._svcs is None:
-			if not self.service:
-				raise Exception('No service defined for this game - please ensure to set `self.service`')
+			if not self.service_handler:
+				raise Exception('No service defined for this game - please ensure to set `self.service_handler`')
 			self._svcs = []
 			for svc in self.services:
-				self._svcs.append(self.service(svc, self))
+				self._svcs.append(self.service_handler(svc, self))
 		return self._svcs
 
-	def get_service(self, service_name: str) -> object | None:
+	def get_service(self, service_name: str) -> Optional['BaseService']:
 		"""
 		Get a specific service instance by name
 
