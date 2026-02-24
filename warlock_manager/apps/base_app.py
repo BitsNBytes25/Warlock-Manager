@@ -4,9 +4,12 @@ import os
 import shutil
 import sys
 import time
-from abc import ABC, abstractmethod
+from abc import ABC
 from urllib import request
 from urllib import error as urllib_error
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+	from warlock_manager.services.base_service import BaseService
 
 from warlock_manager.libs.tui import prompt_yn, prompt_text
 
@@ -39,6 +42,11 @@ class BaseApp(ABC):
 		"""
 		:type list<BaseService>:
 		Cached list of service instances for this game
+		"""
+
+		self.service: 'BaseService' = None
+		"""
+		Specific service to handle for this specific game
 		"""
 
 		self.configs = {}
@@ -355,14 +363,19 @@ class BaseApp(ABC):
 					print('Starting %s' % service.service)
 					service.start()
 
-	@abstractmethod
 	def get_services(self) -> list:
 		"""
 		Get a dictionary of available services (instances) for this game
 
 		:return:
 		"""
-		...
+		if self._svcs is None:
+			if not self.service:
+				raise Exception('No service defined for this game - please ensure to set `self.service`')
+			self._svcs = []
+			for svc in self.services:
+				self._svcs.append(self.service(svc, self))
+		return self._svcs
 
 	def get_service(self, service_name: str) -> object | None:
 		"""
