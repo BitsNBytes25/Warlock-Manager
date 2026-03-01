@@ -10,9 +10,11 @@ class SocketService(BaseService, ABC):
 	def __init__(self, service: str, game: BaseApp):
 		super().__init__(service, game)
 
-		self.socket: str = None
+		self.socket: str = '/var/run/%s.socket' % self.service
 		"""
 		Socket path for this service, must be set for the API to function.
+
+		Set by default to /var/run/{service}.socket, but can be overridden by the service implementation if needed.
 		"""
 
 	def _api_cmd(self, cmd):

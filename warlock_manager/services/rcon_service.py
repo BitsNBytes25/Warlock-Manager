@@ -48,6 +48,18 @@ class RCONService(BaseService):
 		print('All RCON connection attempts failed.', file=sys.stderr)
 		return None
 
+	def get_player_count(self) -> int | None:
+		"""
+		Get the current player count on the server, or None if the API is unavailable
+
+		:return:
+		"""
+		players = self.get_players()
+		if players is None:
+			return None
+		else:
+			return len(players)
+
 	def is_api_enabled(self) -> bool:
 		"""
 		Check if RCON is enabled for this service
