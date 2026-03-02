@@ -3,8 +3,7 @@ import os
 import re
 import tempfile
 from typing import Union
-
-from warlock_manager.config.base_config import BaseConfig
+from scriptlets.warlock.base_config import *
 
 
 class UnrealConfig(BaseConfig):

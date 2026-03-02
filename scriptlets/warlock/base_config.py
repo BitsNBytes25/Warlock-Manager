@@ -2,16 +2,15 @@ import os
 import sys
 from typing import Union
 import yaml
-from abc import ABC
 
 
-class BaseConfig(ABC):
+class BaseConfig:
 	def __init__(self, group_name: str, *args, **kwargs):
 		self.options = {}
 		"""
 		:type dict<str, tuple<str, str, str, str, str>>
 		Primary dictionary of all options on this config
-
+		
 		* Item 0: Section
 		* Item 1: Key
 		* Item 2: Default Value
@@ -26,7 +25,7 @@ class BaseConfig(ABC):
 		"""
 
 		# Load the configuration definitions from configs.yaml
-		here = os.path.dirname(os.path.realpath(sys.argv[0]))
+		here = os.path.dirname(os.path.realpath(__file__))
 
 		if os.path.exists(os.path.join(here, 'configs.yaml')):
 			with open(os.path.join(here, 'configs.yaml'), 'r') as cfgfile:

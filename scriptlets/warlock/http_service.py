@@ -1,10 +1,8 @@
 import json
 import base64
-import sys
+from typing import Union
 from urllib import request
-
-from warlock_manager.apps.base_app import BaseApp
-from warlock_manager.services.base_service import BaseService
+from scriptlets.warlock.base_service import *
 
 
 class HTTPService(BaseService):

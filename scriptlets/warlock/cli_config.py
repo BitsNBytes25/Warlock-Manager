@@ -1,8 +1,8 @@
 import os
 import sys
 from typing import Union
-
-from warlock_manager.config.base_config import BaseConfig
+import yaml
+from scriptlets.warlock.base_config import *
 
 
 class CLIConfig(BaseConfig):
@@ -26,7 +26,7 @@ class CLIConfig(BaseConfig):
 		:type str:
 		Optional format of the line in the file that contains the arguments.
 		If set will be used to automatically extract and parse the command flags.
-
+		
 		Use [OPTIONS] to denote where options should be injected.
 		"""
 

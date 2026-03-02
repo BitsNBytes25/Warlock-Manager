@@ -1,9 +1,7 @@
-import os
 import sys
 from typing import Union
-
-from warlock_manager.config.base_config import BaseConfig
-
+import configparser
+from scriptlets.warlock.base_config import *
 
 class PropertiesConfig(BaseConfig):
 	"""
@@ -139,3 +137,6 @@ class PropertiesConfig(BaseConfig):
 
 		if os.geteuid() == 0 and uid is not None and gid is not None:
 			os.chown(self.path, uid, gid)
+
+
+

@@ -3,19 +3,14 @@ import json
 import os
 import shutil
 import sys
-import time
-from abc import ABC
 from urllib import request
 from urllib import error as urllib_error
-from typing import TYPE_CHECKING, Optional
-
-if TYPE_CHECKING:
-	from warlock_manager.services.base_service import BaseService
-
-from warlock_manager.libs.tui import prompt_yn, prompt_text
+from typing import Union
+from scriptlets.bz_eval_tui.prompt_yn import *
+from scriptlets.bz_eval_tui.prompt_text import *
 
 
-class BaseApp(ABC):
+class BaseApp:
 	"""
 	Game application manager
 	"""
@@ -45,14 +40,9 @@ class BaseApp(ABC):
 		Cached list of service instances for this game
 		"""
 
-		self.service_handler: 'BaseService' = None
-		"""
-		Specific service to handle for this specific game
-		"""
-
 		self.configs = {}
 		"""
-		:type dict<str, BaseConfig>:
+		:type dict<str, BaseConfig>: 
 		Dictionary of configuration files for this game
 		"""
 
@@ -90,7 +80,7 @@ class BaseApp(ABC):
 
 		return opts
 
-	def get_option_value(self, option: str) -> str | int | bool:
+	def get_option_value(self, option: str) -> Union[str, int, bool]:
 		"""
 		Get a configuration option from the game config
 		:param option:
@@ -118,7 +108,7 @@ class BaseApp(ABC):
 
 	def get_option_type(self, option: str) -> str:
 		"""
-		Get the type of configuration option from the game config
+		Get the type of a configuration option from the game config
 		:param option:
 		:return:
 		"""
@@ -152,7 +142,7 @@ class BaseApp(ABC):
 		"""
 		pass
 
-	def set_option(self, option: str, value: str | int | bool):
+	def set_option(self, option: str, value: Union[str, int, bool]):
 		"""
 		Set a configuration option in the game config
 		:param option:
@@ -177,7 +167,7 @@ class BaseApp(ABC):
 	def get_option_options(self, option: str):
 		"""
 		Get the list of possible options for a configuration option
-		:param option:
+		:param options:
 		:return:
 		"""
 		for config in self.configs.values():
@@ -208,6 +198,18 @@ class BaseApp(ABC):
 
 		self.set_option(option, val)
 
+	def get_services(self) -> list:
+		"""
+		Get a dictionary of available services (instances) for this game
+
+		:return:
+		"""
+		if self._svcs is None:
+			self._svcs = []
+			for svc in self.services:
+				self._svcs.append(GameService(svc, self))
+		return self._svcs
+
 	def is_active(self) -> bool:
 		"""
 		Check if any service instance is currently running or starting
@@ -217,178 +219,6 @@ class BaseApp(ABC):
 			if svc.is_running() or svc.is_starting() or svc.is_stopping():
 				return True
 		return False
-
-	def stop_all(self):
-		"""
-		Stop all services with a 5-minute warning to players.
-
-		:return:
-		"""
-		for service in self.get_services():
-			if service.is_running():
-				service.stop()
-
-	def delayed_stop_all(self):
-		"""
-		Perform a delayed stop of all services, giving players time to log off safely before stopping the server.
-
-		Provides a 1-hour warning with 5-minute notifications, then stops all services.
-		This is intended to be used when performing maintenance or updates that require downtime,
-		but you want to give players a chance to log off safely before the server goes down.
-
-		:return:
-		"""
-		self._delayed_action('stop')
-
-	def restart_all(self):
-		"""
-		Restart all services with a 5-minute warning to players.
-
-		:return:
-		"""
-		for service in self.get_services():
-			if service.is_running():
-				service.restart()
-
-	def delayed_restart_all(self):
-		"""
-		Perform a delayed restart of all services, giving players time to log off safely before restarting the server.
-
-		Provides a 1-hour warning with 5-minute notifications, then restarts all services.
-		This is intended to be used when performing maintenance or updates that require downtime,
-		but you want to give players a chance to log off safely before the server goes down.
-
-		:return:
-		"""
-		self._delayed_action('restart')
-
-	def start_all(self):
-		"""
-		Start all services that are enabled for auto-start.
-
-		:return:
-		"""
-		for svc in self.get_services():
-			if svc.is_enabled():
-				svc.start()
-			else:
-				print('Skipping %s as it is not enabled for auto-start.' % svc.service)
-
-	def delayed_update(self):
-		"""
-		Perform a delayed update of the game, giving players time to log off safely before restarting the server.
-
-		Provides a 1-hour warning with 5-minute notifications, then updates the game and restarts all services.
-		This is intended to be used when performing maintenance or updates that require downtime,
-		but you want to give players a chance to log off safely before the server goes down.
-
-		:return:
-		"""
-		self._delayed_action('update')
-
-	def _delayed_action(self, action):
-		"""
-		If players are logged in, send 5-minute notifications for an hour before stopping the server
-
-		This action applies to ALL game instances under this application.
-
-		:param action:
-		:return:
-		"""
-
-		if action not in ['stop', 'restart', 'update']:
-			print('ERROR - Invalid action for delayed action: %s' % action, file=sys.stderr)
-			return
-
-		if os.geteuid() != 0:
-			print('ERROR - Unable to %s game service unless run with sudo' % action, file=sys.stderr)
-			return
-
-		msg = self.get_option_value('%s_delayed' % action)
-		if msg == '':
-			msg = 'Server will %s in {time} minutes. Please prepare to log off safely.' % action
-
-		start = round(time.time())
-		services_running = []
-		services = self.get_services()
-
-		print('Issuing %s for all services, please wait as this will give players up to an hour to log off safely.' % action)
-
-		while True:
-			still_running = False
-			minutes_left = 55 - ((round(time.time()) - start) // 60)
-			player_msg = msg
-			if '{time}' in player_msg:
-				player_msg = player_msg.replace('{time}', str(minutes_left))
-
-			for service in services:
-				if service.is_running():
-					still_running = True
-					if service.service not in services_running:
-						services_running.append(service.service)
-
-					player_count = service.get_player_count()
-
-					if player_count == 0 or player_count is None:
-						# No players online, stop the service
-						print('No players detected on %s, stopping service now.' % service.service)
-						service.stop()
-					else:
-						# Still online, check to see if we should send a message
-
-						if minutes_left <= 5:
-							# Once the timer hits 5 minutes left, drop to the standard stop procedure.
-							service.stop()
-
-						if minutes_left % 5 == 0 and minutes_left > 5:
-							# Send the warning every 5 minutes
-							service.send_message(player_msg)
-
-			if minutes_left % 5 == 0 and minutes_left > 5:
-				print('%s minutes remaining before %s.' % (str(minutes_left), action))
-
-			if not still_running or minutes_left <= 0:
-				# No services are running, stop the timer
-				break
-
-			time.sleep(60)
-
-		if action == 'update':
-			# Now that all services have been stopped, perform the update
-			self.update()
-
-		if action == 'restart' or action == 'update':
-			# Now that all services have been stopped, restart any that were running before
-			for service in services:
-				if service.service in services_running:
-					print('Starting %s' % service.service)
-					service.start()
-
-	def get_services(self) -> list['BaseService']:
-		"""
-		Get a dictionary of available services (instances) for this game
-
-		:return:
-		"""
-		if self._svcs is None:
-			if not self.service_handler:
-				raise Exception('No service defined for this game - please ensure to set `self.service_handler`')
-			self._svcs = []
-			for svc in self.services:
-				self._svcs.append(self.service_handler(svc, self))
-		return self._svcs
-
-	def get_service(self, service_name: str) -> Optional['BaseService']:
-		"""
-		Get a specific service instance by name
-
-		:param service_name:
-		:return: BaseService instance or None if not found
-		"""
-		for svc in self.get_services():
-			if svc.service == service_name:
-				return svc
-		return None
 
 	def check_update_available(self) -> bool:
 		"""
@@ -434,44 +264,27 @@ class BaseApp(ABC):
 		print('Sending to discord: ' + message)
 		req = request.Request(
 			self.get_option_value('Discord Webhook URL'),
-			headers={
-				'Content-Type': 'application/json',
-				'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0'
-			},
+			headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0'},
 			method='POST'
 		)
 		data = json.dumps({'content': message}).encode('utf-8')
 		try:
-			with request.urlopen(req, data=data):
+			with request.urlopen(req, data=data) as resp:
 				pass
 		except urllib_error.HTTPError as e:
 			print('Could not notify Discord: %s' % e)
 
-	def get_save_directory(self) -> str | None:
+	def get_save_directory(self) -> Union[str, None]:
 		"""
-		Get the full directory path for save content for game, or None if not applicable
-
-		For example, to return AppFiles beside the management script:
-
-		```python
-		here = os.path.dirname(os.path.realpath(sys.argv[0]))
-		return os.path.join(here, 'AppFiles')
-		```
+		Get the save directory for this game, or None if not applicable
 
 		:return:
 		"""
 		return None
 
-	def get_save_files(self) -> list | None:
+	def get_save_files(self) -> Union[list, None]:
 		"""
-		Get the list of supplemental files or directories for this game, or None if not applicable
-
-		This list of files **should not** be fully resolved, and will use `self.get_save_directory()` as the base path.
-		For example, to return `AppFiles/SaveData` and `AppFiles/Config`:
-
-		```python
-		return ['SaveData', 'Config']
-		```
+		Get the list of save files/directories for this game, or None if not applicable
 
 		:return:
 		"""
@@ -495,7 +308,7 @@ class BaseApp(ABC):
 
 		:return:
 		"""
-		here = os.path.dirname(os.path.realpath(sys.argv[0]))
+		here = os.path.dirname(os.path.realpath(__file__))
 		temp_store = os.path.join(here, '.save')
 		save_source = self.get_save_directory()
 		save_files = self.get_save_files()
@@ -553,11 +366,11 @@ class BaseApp(ABC):
 
 		:return:
 		"""
-		here = os.path.dirname(os.path.realpath(sys.argv[0]))
+		here = os.path.dirname(os.path.realpath(__file__))
 		target_dir = os.path.join(here, 'backups')
 		temp_store = os.path.join(here, '.save')
 		base_name = self.name
-		# Ensure no invalid characters in the name
+		# Ensure no weird characters in the name
 		replacements = {
 			'/': '_',
 			'\\': '_',
@@ -579,7 +392,7 @@ class BaseApp(ABC):
 			uid = None
 			gid = None
 
-		# Ensure the target directory exists; this will store the finalized backups
+		# Ensure target directory exists; this will store the finalized backups
 		if not os.path.exists(target_dir):
 			os.makedirs(target_dir)
 			if uid is not None:
@@ -627,7 +440,7 @@ class BaseApp(ABC):
 		self.complete_restore()
 		return True
 
-	def prepare_restore(self, filename) -> str | bool:
+	def prepare_restore(self, filename) -> Union[str, bool]:
 		"""
 		Prepare to restore a backup by extracting it to a temporary location
 
@@ -642,7 +455,7 @@ class BaseApp(ABC):
 			print('Game server is currently running, please stop it before restoring a backup!', file=sys.stderr)
 			return False
 
-		here = os.path.dirname(os.path.realpath(sys.argv[0]))
+		here = os.path.dirname(os.path.realpath(__file__))
 		temp_store = os.path.join(here, '.restore')
 		os.makedirs(temp_store, exist_ok=True)
 		save_dest = self.get_save_directory()
@@ -714,16 +527,8 @@ class BaseApp(ABC):
 
 		:return:
 		"""
-		here = os.path.dirname(os.path.realpath(sys.argv[0]))
+		here = os.path.dirname(os.path.realpath(__file__))
 		temp_store = os.path.join(here, '.restore')
 
 		# Cleanup
 		shutil.rmtree(temp_store)
-
-	def first_run(self) -> bool:
-		"""
-		Perform any first-run configuration needed for this game
-
-		:return:
-		"""
-		return True

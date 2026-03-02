@@ -2,7 +2,7 @@ import unittest
 import tempfile
 import os
 
-from warlock_manager.config.unreal_config import UnrealConfig
+from scriptlets.warlock.unreal_config import UnrealConfig
 
 
 class TestUnrealConfigSave(unittest.TestCase):

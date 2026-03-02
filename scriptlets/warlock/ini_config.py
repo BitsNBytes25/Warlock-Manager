@@ -2,9 +2,7 @@ import sys
 from typing import Union
 import configparser
 import tempfile
-import os
-
-from warlock_manager.config.base_config import BaseConfig
+from scriptlets.warlock.base_config import *
 
 
 class INIConfig(BaseConfig):
@@ -159,3 +157,4 @@ class INIConfig(BaseConfig):
 					os.chown(self.path, uid, gid)
 					break
 				check_path = os.path.dirname(check_path)
+

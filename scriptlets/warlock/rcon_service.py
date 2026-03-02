@@ -1,11 +1,12 @@
-import sys
+from typing import Union
 from rcon.source import Client
-
-from warlock_manager.services.base_service import BaseService
+from rcon import SessionTimeout
+from rcon.exceptions import WrongPassword
+from scriptlets.warlock.base_service import *
 
 
 class RCONService(BaseService):
-	def _api_cmd(self, cmd) -> None | str:
+	def _api_cmd(self, cmd) -> Union[None,str]:
 		"""
 		Execute a raw command with RCON and return the result
 
@@ -47,18 +48,6 @@ class RCONService(BaseService):
 
 		print('All RCON connection attempts failed.', file=sys.stderr)
 		return None
-
-	def get_player_count(self) -> int | None:
-		"""
-		Get the current player count on the server, or None if the API is unavailable
-
-		:return:
-		"""
-		players = self.get_players()
-		if players is None:
-			return None
-		else:
-			return len(players)
 
 	def is_api_enabled(self) -> bool:
 		"""

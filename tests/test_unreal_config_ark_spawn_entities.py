@@ -1,7 +1,8 @@
 import os
 import unittest
 
-from warlock_manager.config.unreal_config import UnrealConfig
+from scriptlets.warlock.unreal_config import UnrealConfig
+from scriptlets.warlock.base_config import BaseConfig
 
 here = os.path.dirname(os.path.realpath(__file__))
 

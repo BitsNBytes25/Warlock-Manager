@@ -1,6 +1,6 @@
 
 import unittest
-from warlock_manager.config.base_config import BaseConfig
+from scriptlets.warlock.base_config import BaseConfig
 
 
 first_test = '''

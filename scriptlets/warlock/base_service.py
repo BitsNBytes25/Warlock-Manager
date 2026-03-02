@@ -1,56 +1,30 @@
 import datetime
 import os
 import subprocess
-import sys
 import time
-from abc import abstractmethod, ABC
+from typing import Union
+from scriptlets.warlock.base_app import *
+from scriptlets.bz_eval_tui.prompt_yn import *
+from scriptlets.bz_eval_tui.prompt_text import *
 
-from warlock_manager.apps.base_app import BaseApp
-from warlock_manager.libs.tui import prompt_yn, prompt_text
 
-
-class BaseService(ABC):
+class BaseService:
 	"""
 	Service definition and handler
 	"""
 	def __init__(self, service: str, game: BaseApp):
 		"""
 		Initialize and load the service definition
-
-		:param service: The name of the systemd service to manage
-		:param game: The game app instance this service belongs to
+		:param file:
 		"""
-
 		self.service = service
-		"""
-		Name of the service, must match the systemd service name for this instance
-
-		example: `/etc/systemd/system/minecraft.service` would be `minecraft`
-		"""
-
 		self.game = game
-		"""
-		Game application instance this service belongs to,
-		used for accessing game-level configuration and APIs
-		"""
-
 		self.configured = False
-		"""
-		Set to True after configuration files have been loaded successfully,
-		used to prevent saving configs before they're loaded
-		"""
-
 		self.configs = {}
-		"""
-		Key-value pair of configuration file instances for this service
-
-		Each service should have its own key with the value being the ConfigHandler for that appropriate type.
-		"""
 
 	def load(self):
 		"""
 		Load the configuration files
-
 		:return:
 		"""
 		for config in self.configs.values():
@@ -61,7 +35,6 @@ class BaseService(ABC):
 	def get_options(self) -> list:
 		"""
 		Get a list of available configuration options for this service
-
 		:return:
 		"""
 		opts = []
@@ -73,10 +46,9 @@ class BaseService(ABC):
 
 		return opts
 
-	def get_option_value(self, option: str) -> str | int | bool:
+	def get_option_value(self, option: str) -> Union[str, int, bool]:
 		"""
 		Get a configuration option from the service config
-
 		:param option:
 		:return:
 		"""
@@ -90,7 +62,6 @@ class BaseService(ABC):
 	def get_option_default(self, option: str) -> str:
 		"""
 		Get the default value of a configuration option
-
 		:param option:
 		:return:
 		"""
@@ -103,8 +74,7 @@ class BaseService(ABC):
 
 	def get_option_type(self, option: str) -> str:
 		"""
-		Get the type of configuration option from the service config
-
+		Get the type of a configuration option from the service config
 		:param option:
 		:return:
 		"""
@@ -118,7 +88,6 @@ class BaseService(ABC):
 	def get_option_help(self, option: str) -> str:
 		"""
 		Get the help text of a configuration option from the service config
-
 		:param option:
 		:return:
 		"""
@@ -132,7 +101,6 @@ class BaseService(ABC):
 	def option_value_updated(self, option: str, previous_value, new_value):
 		"""
 		Handle any special actions needed when an option value is updated
-
 		:param option:
 		:param previous_value:
 		:param new_value:
@@ -140,10 +108,9 @@ class BaseService(ABC):
 		"""
 		pass
 
-	def set_option(self, option: str, value: str | int | bool):
+	def set_option(self, option: str, value: Union[str, int, bool]):
 		"""
 		Set a configuration option in the service config
-
 		:param option:
 		:param value:
 		:return:
@@ -158,7 +125,6 @@ class BaseService(ABC):
 				config.set_value(option, value)
 				config.save()
 
-				# Allow the extending service to handle any special actions needed for this option update
 				self.option_value_updated(option, previous_value, value)
 				return
 
@@ -167,7 +133,6 @@ class BaseService(ABC):
 	def option_has_value(self, option: str) -> bool:
 		"""
 		Check if a configuration option has a value set in the service config
-
 		:param option:
 		:return:
 		"""
@@ -181,8 +146,7 @@ class BaseService(ABC):
 	def get_option_options(self, option: str):
 		"""
 		Get the list of possible options for a configuration option
-
-		:param option:
+		:param options:
 		:return:
 		"""
 		for config in self.configs.values():
@@ -195,7 +159,6 @@ class BaseService(ABC):
 	def option_ensure_set(self, option: str):
 		"""
 		Ensure that a configuration option has a value set, using the default if not
-
 		:param option:
 		:return:
 		"""
@@ -206,15 +169,13 @@ class BaseService(ABC):
 	def get_name(self) -> str:
 		"""
 		Get the display name of this service
-
 		:return:
 		"""
 		return self.service
 
-	def get_port(self) -> int | None:
+	def get_port(self) -> Union[int, None]:
 		"""
 		Get the primary port of the service, or None if not applicable
-
 		:return:
 		"""
 		return None
@@ -222,7 +183,6 @@ class BaseService(ABC):
 	def prompt_option(self, option: str):
 		"""
 		Prompt the user to set a configuration option for the service
-
 		:param option:
 		:return:
 		"""
@@ -241,34 +201,30 @@ class BaseService(ABC):
 
 		self.set_option(option, val)
 
-	def get_player_max(self) -> int | None:
+	def get_player_max(self) -> Union[int, None]:
 		"""
 		Get the maximum player count on the server, or None if the API is unavailable
-
 		:return:
 		"""
-		return None
+		pass
 
-	def get_player_count(self) -> int | None:
+	def get_player_count(self) -> Union[int, None]:
 		"""
 		Get the current player count on the server, or None if the API is unavailable
-
 		:return:
 		"""
-		return None
+		pass
 
-	def get_players(self) -> list | None:
+	def get_players(self) -> Union[list, None]:
 		"""
 		Get a list of current players on the server, or None if the API is unavailable
-
 		:return:
 		"""
-		return None
+		pass
 
 	def get_pid(self) -> int:
 		"""
 		Get the PID of the running service, or 0 if not running
-
 		:return:
 		"""
 		pid = subprocess.run([
@@ -278,31 +234,20 @@ class BaseService(ABC):
 		return int(pid)
 
 	def get_process_status(self) -> int:
-		"""
-		Get the exit status of the main process of the service, or 0 if running successfully
-
-		:return:
-		"""
 		return int(subprocess.run([
 			'systemctl', 'show', '-p', 'ExecMainStatus', self.service
 		], stdout=subprocess.PIPE).stdout.decode().strip()[15:])
 
-	@abstractmethod
 	def get_game_pid(self) -> int:
 		"""
 		Get the primary game process PID of the actual game server, or 0 if not running
-
 		:return:
 		"""
-		...
+		pass
 
 	def get_memory_usage(self) -> str:
 		"""
 		Get the formatted memory usage of the service, or N/A if not running
-
-		Returns "# GB" or "# MB" depending on the amount of memory used,
-		or "N/A" if the memory usage cannot be determined (service not running, etc)
-
 		:return:
 		"""
 
@@ -329,9 +274,6 @@ class BaseService(ABC):
 	def get_cpu_usage(self) -> str:
 		"""
 		Get the formatted CPU usage of the service, or N/A if not running
-
-		Returns "#%" of CPU used, or "N/A" if the CPU usage cannot be determined (service not running, etc)
-
 		:return:
 		"""
 
@@ -349,10 +291,9 @@ class BaseService(ABC):
 		else:
 			return 'N/A'
 
-	def get_exec_start_status(self) -> dict | None:
+	def get_exec_start_status(self) -> Union[dict, None]:
 		"""
 		Get the ExecStart status of the service
-
 		This includes:
 
 		* path - string: Path of the ExecStartPre command
@@ -368,10 +309,9 @@ class BaseService(ABC):
 		"""
 		return self._get_exec_status('ExecStart')
 
-	def get_exec_start_pre_status(self) -> dict | None:
+	def get_exec_start_pre_status(self) -> Union[dict, None]:
 		"""
 		Get the ExecStart status of the service
-
 		This includes:
 
 		* path - string: Path of the ExecStartPre command
@@ -387,10 +327,10 @@ class BaseService(ABC):
 		"""
 		return self._get_exec_status('ExecStartPre')
 
-	def _get_exec_status(self, lookup: str) -> dict | None:
+
+	def _get_exec_status(self, lookup: str) -> Union[dict, None]:
 		"""
 		Get the ExecStartPre status of the service
-
 		This includes:
 
 		* path - string: Path of the ExecStartPre command
@@ -407,7 +347,7 @@ class BaseService(ABC):
 
 		output = subprocess.run([
 			'systemctl', 'show', '-p', lookup, self.service
-		], stdout=subprocess.PIPE).stdout.decode().strip()[len(lookup) + 1:]
+		], stdout=subprocess.PIPE).stdout.decode().strip()[len(lookup)+1:]
 		if output == '':
 			return None
 
@@ -461,8 +401,6 @@ class BaseService(ABC):
 		"""
 		Get the output of systemctl is-enabled for this service
 
-		Returns:
-
 		* enabled - Service is enabled
 		* disabled - Service is disabled
 		* static - Service is static and cannot be enabled/disabled
@@ -480,8 +418,6 @@ class BaseService(ABC):
 	def _is_active(self) -> str:
 		"""
 		Returns a string based on the status of the service:
-
-		Returns:
 
 		* active - Running
 		* reloading - Running but reloading configuration
@@ -502,7 +438,6 @@ class BaseService(ABC):
 	def is_enabled(self) -> bool:
 		"""
 		Check if this service is enabled in systemd
-
 		:return:
 		"""
 		return self._is_enabled() == 'enabled'
@@ -510,7 +445,6 @@ class BaseService(ABC):
 	def is_running(self) -> bool:
 		"""
 		Check if this service is currently running
-
 		:return:
 		"""
 		return self._is_active() == 'active'
@@ -518,7 +452,6 @@ class BaseService(ABC):
 	def is_starting(self) -> bool:
 		"""
 		Check if this service is currently starting
-
 		:return:
 		"""
 		return self._is_active() == 'activating'
@@ -526,7 +459,6 @@ class BaseService(ABC):
 	def is_stopping(self) -> bool:
 		"""
 		Check if this service is currently stopping
-
 		:return:
 		"""
 		return self._is_active() == 'deactivating'
@@ -534,7 +466,6 @@ class BaseService(ABC):
 	def is_api_enabled(self) -> bool:
 		"""
 		Check if an API is available for this service
-
 		:return:
 		"""
 		return False
@@ -542,7 +473,6 @@ class BaseService(ABC):
 	def enable(self):
 		"""
 		Enable this service in systemd
-
 		:return:
 		"""
 		if os.geteuid() != 0:
@@ -553,7 +483,6 @@ class BaseService(ABC):
 	def disable(self):
 		"""
 		Disable this service in systemd
-
 		:return:
 		"""
 		if os.geteuid() != 0:
@@ -564,7 +493,6 @@ class BaseService(ABC):
 	def print_logs(self, lines: int = 20):
 		"""
 		Print the latest logs from this service
-
 		:param lines:
 		:return:
 		"""
@@ -573,7 +501,6 @@ class BaseService(ABC):
 	def get_logs(self, lines: int = 20) -> str:
 		"""
 		Get the latest logs from this service
-
 		:param lines:
 		:return:
 		"""
@@ -585,7 +512,6 @@ class BaseService(ABC):
 	def send_message(self, message: str):
 		"""
 		Send a message to all players via the game API
-
 		:param message:
 		:return:
 		"""
@@ -594,12 +520,10 @@ class BaseService(ABC):
 	def save_world(self):
 		"""
 		Force a world save via the game API
-
 		:return:
 		"""
 		pass
 
-	@abstractmethod
 	def get_port_definitions(self) -> list:
 		"""
 		Get a list of port definitions for this service
@@ -610,23 +534,13 @@ class BaseService(ABC):
 		* 'UDP' or 'TCP'
 		* Description of the port purpose
 
-		Example:
-
-		```python
-		return [
-			['Game Port', 'UDP', 'Primary game port for clients to connect to'],
-			[25565, 'TCP', 'RCON port, statically assigned and cannot be changed']
-		]
-		```
-
 		:return:
 		"""
-		...
+		pass
 
 	def start(self):
 		"""
 		Start this service in systemd
-
 		:return:
 		"""
 		if self.is_running():
@@ -752,7 +666,6 @@ class BaseService(ABC):
 	def post_start(self) -> bool:
 		"""
 		Perform the necessary operations for after a game has started
-
 		:return:
 		"""
 		if self.is_api_enabled():
@@ -789,64 +702,9 @@ class BaseService(ABC):
 			# API not available, so nothing to check.
 			return True
 
-	def _delayed_action(self, action):
-		"""
-		If players are logged in, send 5-minute notifications for an hour before stopping the server
-
-		:param action:
-		:return:
-		"""
-
-		if action not in ['stop', 'restart']:
-			print('ERROR - Invalid action for delayed action: %s' % action, file=sys.stderr)
-			return
-
-		if os.geteuid() != 0:
-			print('ERROR - Unable to stop game service unless run with sudo', file=sys.stderr)
-			return
-
-		start = round(time.time())
-		msg = self.game.get_option_value('%s_delayed' % action)
-		if msg == '':
-			msg = 'Server will %s in {time} minutes. Please prepare to log off safely.' % action
-
-		print(
-			'Issuing %s for %s, please wait as this will give players up to an hour to log off safely.' %
-			(action, self.service)
-		)
-
-		while True:
-			minutes_left = 55 - ((round(time.time()) - start) // 60)
-			player_count = self.get_player_count()
-
-			if player_count == 0 or player_count is None:
-				# No players online, stop the timer
-				break
-
-			if '{time}' in msg:
-				msg = msg.replace('{time}', str(minutes_left))
-
-			if minutes_left <= 5:
-				# Once the timer hits 5 minutes left, drop to the standard stop procedure.
-				break
-
-			if minutes_left % 5 == 0:
-				self.send_message(msg)
-
-			if minutes_left % 5 == 0 and minutes_left > 5:
-				print('%s minutes remaining before %s.' % (str(minutes_left), action))
-
-			time.sleep(60)
-
-		if action == 'stop':
-			self.stop()
-		else:
-			self.restart()
-
 	def stop(self):
 		"""
 		Stop this service in systemd
-
 		:return:
 		"""
 		if os.geteuid() != 0:
@@ -857,18 +715,9 @@ class BaseService(ABC):
 		subprocess.Popen(['systemctl', 'stop', self.service])
 		time.sleep(10)
 
-	def delayed_stop(self):
-		"""
-		Delayed stop procedure for this service
-
-		:return:
-		"""
-		self._delayed_action('stop')
-
 	def restart(self):
 		"""
 		Restart this service in systemd
-
 		:return:
 		"""
 		if not self.is_running():
@@ -878,10 +727,3 @@ class BaseService(ABC):
 		self.stop()
 		self.start()
 
-	def delayed_restart(self):
-		"""
-		Delayed restart procedure for this service
-
-		:return:
-		"""
-		self._delayed_action('restart')
