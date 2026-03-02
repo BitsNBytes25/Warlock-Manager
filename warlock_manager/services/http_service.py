@@ -12,6 +12,16 @@ class HTTPService(BaseService):
 	def __init__(self, service: str, game: BaseApp):
 		super().__init__(service, game)
 
+	def cmd(self, cmd: str) -> None | str:
+		"""
+		Send a command to the game server via the API, if available
+
+		:param cmd:
+		:return: None if the API is not available, or the result of the command
+		"""
+		print('This service does not support a simple API for issuing commands.', file=sys.stderr)
+		return None
+
 	def _api_cmd(self, cmd: str, method: str = 'GET', data: dict = None):
 		method = method.upper()
 

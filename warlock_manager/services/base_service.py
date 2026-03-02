@@ -885,3 +885,13 @@ class BaseService(ABC):
 		:return:
 		"""
 		self._delayed_action('restart')
+
+	def cmd(self, cmd: str) -> None | str:
+		"""
+		Send a command to the game server via the API, if available
+
+		:param cmd:
+		:return: None if the API is not available, or the result of the command
+		"""
+		print('This service does not have an API available to send commands.', file=sys.stderr)
+		return None

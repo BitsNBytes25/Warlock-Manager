@@ -1,11 +1,16 @@
 import sys
 from rcon.source import Client
+from typing_extensions import deprecated
 
 from warlock_manager.services.base_service import BaseService
 
 
 class RCONService(BaseService):
-	def _api_cmd(self, cmd) -> None | str:
+	@deprecated('use cmd instead')
+	def _api_cmd(self, cmd: str):
+		return self.cmd(cmd)
+
+	def cmd(self, cmd) -> None | str:
 		"""
 		Execute a raw command with RCON and return the result
 

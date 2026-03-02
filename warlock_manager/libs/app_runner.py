@@ -140,6 +140,22 @@ def app_runner(game: BaseApp):
 		sys.exit(0)
 
 	@app.command()
+	def cmd(service: arg_service_required, command: str):
+		"""
+		Send a command to the game server via the service API
+
+		:param service:
+		:param command:
+		:return:
+		"""
+		result = service.cmd(command)
+		if result is not None:
+			print(result)
+			sys.exit(0)
+		else:
+			sys.exit(1)
+
+	@app.command()
 	def backup(max_backups: arg_max_backups = 0):
 		"""
 		Create a backup of the game, keeping a maximum number of backups if specified
