@@ -25,6 +25,12 @@ dev = [
     "pytest",
     "pre-commit>=4.5.1",
 ]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme>=2.0",
+    "sphinx-autodoc-typehints>=2.0",
+    "myst-parser>=2.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

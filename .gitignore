@@ -16,3 +16,4 @@ env/
 
 # pytest cache
 .pytest_cache/
+/docs/_build/
