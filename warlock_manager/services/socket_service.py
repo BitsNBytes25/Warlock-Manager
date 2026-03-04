@@ -21,7 +21,7 @@ class SocketService(BaseService, ABC):
 
 	@deprecated('use cmd instead')
 	def _api_cmd(self, cmd: str):
-		self.cmd(cmd)
+		return self.cmd(cmd)
 
 	def cmd(self, cmd) -> None | str:
 		"""
