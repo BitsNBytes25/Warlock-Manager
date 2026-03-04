@@ -647,10 +647,16 @@ class BaseService(ABC):
 			time.sleep(10)
 
 			ready = False
-			counter = 0
+			seconds_elapsed = round(time.time() - start_timer)
+			max_wait = 300
+			max_wait_minutes = str(max_wait // 60)
+			max_wait_seconds = max_wait % 60
+			if max_wait_seconds < 10:
+				max_wait_seconds = '0' + str(max_wait_seconds)
+			else:
+				max_wait_seconds = str(max_wait_seconds)
 			print('loading...')
-			while counter < 240:
-				counter += 1
+			while seconds_elapsed < max_wait:
 				pid = self.get_pid()
 				exec_status = self.get_process_status()
 
@@ -688,8 +694,9 @@ class BaseService(ABC):
 						ready = True
 
 				print(
-					'\033[1A\033[K Time: %s, PID: %s, CPU: %s, Memory: %s, API: %s' % (
+					'\033[1A\033[K Time: %s/%s, PID: %s, CPU: %s, Memory: %s, API: %s' % (
 						since_minutes + ':' + since_seconds,
+						max_wait_minutes + ':' + max_wait_seconds,
 						str(pid),
 						cpu,
 						memory,
@@ -699,7 +706,6 @@ class BaseService(ABC):
 
 				if ready:
 					print('Game has started successfully!')
-					time.sleep(5)
 					break
 				time.sleep(1)
 		except KeyboardInterrupt:
@@ -894,4 +900,12 @@ class BaseService(ABC):
 		:return: None if the API is not available, or the result of the command
 		"""
 		print('This service does not have an API available to send commands.', file=sys.stderr)
+		return None
+
+	def get_commands(self) -> None | list[str]:
+		"""
+		Get a list of available commands for this service
+
+		:return:
+		"""
 		return None
