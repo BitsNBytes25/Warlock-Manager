@@ -267,6 +267,16 @@ def app_runner(game: BaseApp):
 		sys.exit(0)
 
 	@app.command()
+	def create_service(service: str):
+		"""
+		Create a new service instance for the game with the specified name
+
+		:param service:
+		:return:
+		"""
+		sys.exit(0 if game.create_service(service) else 1)
+
+	@app.command()
 	def get_metrics(service: arg_service_optional = None):
 		"""
 		Get performance metrics in JSON format

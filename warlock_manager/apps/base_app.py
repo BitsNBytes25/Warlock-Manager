@@ -50,6 +50,13 @@ class BaseApp(ABC):
 		Specific service to handle for this specific game
 		"""
 
+		self.service_prefix = ''
+		"""
+		:type str:
+		Prefix to use when creating new services.
+		Useful to keep them grouped together in systemd.
+		"""
+
 		self.configs = {}
 		"""
 		:type dict<str, BaseConfig>:
@@ -57,6 +64,16 @@ class BaseApp(ABC):
 		"""
 
 		self.configured = False
+		"""
+		:type bool:
+		Set to True once configuration files are loaded
+		"""
+
+		self.multi_binary = False
+		"""
+		:type bool:
+		Set to True if this game has separate binaries for each service
+		"""
 
 	def load(self):
 		"""
@@ -447,6 +464,110 @@ class BaseApp(ABC):
 		except urllib_error.HTTPError as e:
 			print('Could not notify Discord: %s' % e)
 
+	def get_app_directory(self) -> str:
+		"""
+		Get the base directory for this game installation.
+
+		This directory usually will contain manage.py, AppFiles, Backups, and other related files.
+
+		:return:
+		"""
+		return os.path.dirname(os.path.realpath(sys.argv[0]))
+
+	def create_service(self, service_name: str) -> 'BaseService':
+		"""
+		Create a new service instance for this game with the given name
+
+		:param service_name:
+		:return:
+		"""
+		if not self.service_handler:
+			raise Exception('No service defined for this game - please ensure to set `self.service_handler`')
+
+		# Simple validation of service name; should only contain lowercase letters and dashes.
+		if not service_name.islower() or not all(c.isalnum() or c == '-' for c in service_name):
+			raise Exception(
+				'Invalid service name: %s. Service names should only contain lowercase letters, numbers, and dashes.' %
+				service_name
+			)
+
+		if service_name == '':
+			raise Exception('Service name cannot be empty!')
+
+		if self.service_prefix:
+			if not service_name.startswith(self.service_prefix):
+				service_name = self.service_prefix + service_name
+
+		if service_name.endswith('-'):
+			raise Exception('Service name cannot end with a dash!')
+
+		if service_name.startswith('-'):
+			raise Exception('Service name cannot start with a dash!')
+
+		if os.path.exists('/etc/systemd/system/%s.service' % service_name):
+			raise Exception('Service instance %s already exists!' % service_name)
+
+		svc = self.service_handler(service_name, self)
+		svc.create_service()
+
+		# Add the new service to this list so it's immediately available
+		if self._svcs is None:
+			self._svcs = {}
+		self._svcs[service_name] = svc
+		self.services.append(service_name)
+
+	def detect_services(self) -> list:
+		"""
+		Try to detect available services for this game.
+		:return:
+		"""
+		envs = os.path.join(self.get_app_directory(), 'Environments')
+		if os.path.exists(envs):
+			# Each service should have a file here, named as {service}.env
+			services = []
+			files = os.listdir(envs)
+			for f in files:
+				if f.endswith('.env') and os.path.isfile(os.path.join(envs, f)):
+					services.append(f[:-4])
+			return services
+		return []
+
+	def get_app_uid(self) -> int:
+		"""
+		Get the user ID that should own the game files, based on the ownership of the executable directory
+		:return:
+		"""
+
+		# Pull the user id and group id based off the ownership of 'AppFiles' in the executable directory
+		# If the directory does not exist, (normal for new installations), keep going up until we find one
+		check_dir = self.get_app_directory()
+		while not os.path.exists(check_dir):
+			check_dir = os.path.dirname(check_dir)
+			if check_dir == '/' or check_dir == '':
+				# Reached the root directory without finding an existing directory, default to current user and group
+				return os.geteuid()
+		else:
+			stat_info = os.stat(check_dir)
+			return stat_info.st_uid
+
+	def get_app_gid(self) -> int:
+		"""
+		Get the group ID that should own the game files, based on the ownership of the executable directory
+		:return:
+		"""
+
+		# Pull the user id and group id based off the ownership of 'AppFiles' in the executable directory
+		# If the directory does not exist, (normal for new installations), keep going up until we find one
+		check_dir = self.get_app_directory()
+		while not os.path.exists(check_dir):
+			check_dir = os.path.dirname(check_dir)
+			if check_dir == '/' or check_dir == '':
+				# Reached the root directory without finding an existing directory, default to current user and group
+				return os.getegid()
+		else:
+			stat_info = os.stat(check_dir)
+			return stat_info.st_gid
+
 	def get_save_directory(self) -> str | None:
 		"""
 		Get the full directory path for save content for game, or None if not applicable
@@ -727,3 +848,15 @@ class BaseApp(ABC):
 		:return:
 		"""
 		return True
+
+	def ensure_file_ownership(self, file: str):
+		"""
+		Try to set the ownership of the given file to match the ownership of the game installation directory.
+		:param file:
+		:return:
+		"""
+		if os.geteuid() == 0:
+			# If running as root, chown the environment file to the game user
+			uid = self.get_app_uid()
+			gid = self.get_app_gid()
+			os.chown(file, uid, gid)

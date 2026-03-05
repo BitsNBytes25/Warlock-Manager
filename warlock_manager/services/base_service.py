@@ -5,6 +5,8 @@ import sys
 import time
 from abc import abstractmethod, ABC
 
+from SystemdUnitParser import SystemdUnitParser
+
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.libs.tui import prompt_yn, prompt_text
 
@@ -23,25 +25,48 @@ class BaseService(ABC):
 
 		self.service = service
 		"""
+		:type str:
 		Name of the service, must match the systemd service name for this instance
 
 		example: `/etc/systemd/system/minecraft.service` would be `minecraft`
 		"""
 
+		self._service_file = '/etc/systemd/system/%s.service' % service
+		"""
+		:type str:
+		Full path to the systemd service file for this service,
+		used for checking existence and loading configuration options from the file
+		"""
+
+		self._env_file = os.path.join(game.get_app_directory(), 'Environments', '%s.env' % service)
+		"""
+		:type str:
+		Fully resolved path on the filesystem for the environmental variable for this service
+		"""
+
 		self.game = game
 		"""
+		:type BaseApp:
 		Game application instance this service belongs to,
 		used for accessing game-level configuration and APIs
 		"""
 
+		self.desc = '%s (%s)' % (game.desc, service)
+		"""
+		:type str:
+		Short descriptor for this game instance, used in systemd
+		"""
+
 		self.configured = False
 		"""
+		:type bool:
 		Set to True after configuration files have been loaded successfully,
 		used to prevent saving configs before they're loaded
 		"""
 
 		self.configs = {}
 		"""
+		:type dict:
 		Key-value pair of configuration file instances for this service
 
 		Each service should have its own key with the value being the ConfigHandler for that appropriate type.
@@ -909,3 +934,124 @@ class BaseService(ABC):
 		:return:
 		"""
 		return None
+
+	def get_systemd_config(self) -> SystemdUnitParser:
+		"""
+		Get the systemd unit configuration for this service, if available
+		:return:
+		"""
+		config = SystemdUnitParser()
+		if os.path.exists(self._service_file):
+			config.read(self._service_file)
+
+		if 'Unit' not in config:
+			config['Unit'] = {}
+		if 'Service' not in config:
+			config['Service'] = {}
+		if 'Install' not in config:
+			config['Install'] = {}
+		return config
+
+	def get_app_directory(self) -> str:
+		"""
+		Get the working directory for this game service, which is the directory that contains the game files and executable
+
+		If the game is registered as a multi-binary game, each service is contained within its own directory,
+		otherwise all instances share AppFiles.
+
+		:return:
+		"""
+		base = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'AppFiles')
+		if self.game.multi_binary:
+			base = os.path.join(base, self.service)
+
+		return base
+
+	def get_environment(self) -> dict:
+		"""
+		Get the environment variables for this service as a dictionary
+
+		:return:
+		"""
+		return {
+			'XDG_RUNTIME_DIR': '/run/user/%s' % self.game.get_app_uid(),
+		}
+
+	def build_systemd_config(self):
+		"""
+		Build and save the systemd service file for this service
+
+		WILL OVERWRITE ANY EXISTING SERVICE FILE WITHOUT PROMPT, USE WITH CAUTION
+		:return:
+		"""
+		config = self.get_systemd_config()
+
+		# Calculate the working directory of this game service,
+		# If the game is registered as a multi-binary game, each service is contained within its own directory,
+		# otherwise all instances share AppFiles.
+		working_directory = self.get_app_directory()
+
+		config['Unit']['Description'] = self.desc
+		config['Unit']['After'] = 'network.target'
+		config['Service']['Type'] = 'simple'
+		config['Service']['LimitNOFILE'] = '1000000'
+		config['Service']['User'] = str(self.game.get_app_uid())
+		config['Service']['Group'] = str(self.game.get_app_gid())
+		config['Service']['WorkingDirectory'] = working_directory
+		config['Service']['EnvironmentFile'] = self._env_file
+		config['Service']['ExecStart'] = self.get_executable()
+		config['Service']['ExecStop'] = '%s pre-stop --service %s' % (os.path.realpath(sys.argv[0]), self.service)
+		config['Service']['ExecStartPost'] = '%s post-start --service %s' % (os.path.realpath(sys.argv[0]), self.service)
+		config['Service']['Restart'] = 'on-failure'
+		config['Service']['RestartSec'] = '1800s'
+		config['Service']['TimeoutStartSec'] = '600s'
+		config['Install']['WantedBy'] = 'multi-user.target'
+
+		with open(self._service_file, 'w') as f:
+			config.write(f)
+
+	def create_service(self):
+		"""
+		Create the systemd service for this game, including the service file and environment file
+		:return:
+		"""
+
+		# Build the systemd service file for this service
+		self.build_systemd_config()
+		print('Created systemd service file for %s at %s' % (self.service, self._service_file))
+
+		# Save the environmental variable file for this service
+		with open(self._env_file, 'w') as f:
+			env = self.get_environment()
+			for key in env:
+				f.write('%s=%s\n' % (key, env[key]))
+		print('Created environment file for %s at %s' % (self.service, self._env_file))
+		self.game.ensure_file_ownership(self._env_file)
+
+		# Grab the ports from this service and try to automatically update them to the next available port
+		# NOTICE, this will only check against services within this same game,
+		# so multiple games on the same server may need adjusted manually.
+		port_configs = self.get_port_definitions()
+		services = self.game.get_services()
+		for port_config in port_configs:
+			if isinstance(port_config[0], int):
+				# This is a static port, skip it
+				continue
+
+			max_port = int(self.get_option_value(port_config[0])) - 1
+			for svc in services:
+				max_port = max(max_port, svc.get_option_value(port_config[0]) or 0)
+
+			self.set_option(port_config[0], max_port + 1)
+			print('Set %s to %s' % (port_config[0], max_port + 1))
+
+		# Reload systemd to pick up the new service
+		subprocess.Popen(['systemctl', 'daemon-reload'])
+
+	@abstractmethod
+	def get_executable(self) -> str:
+		"""
+		Get the full executable for this game service
+		:return:
+		"""
+		...

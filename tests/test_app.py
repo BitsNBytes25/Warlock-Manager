@@ -17,7 +17,10 @@ class TestService(BaseService):
 		return [(8080, 'tcp', 'Test Port')]
 
 	def get_game_pid(self) -> int:
-		123
+		return 123
+
+	def get_executable(self) -> str:
+		return '/usr/bin/true'
 
 	def __init__(self, service: str, game: TestApp):
 		super().__init__(service, game)

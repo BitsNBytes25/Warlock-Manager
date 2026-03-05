@@ -1,4 +1,9 @@
 pre-commit
 flake8
 pytest
-
+requests
+pyyaml
+typer
+rcon
+typing_extensions
+systemdunitparser
