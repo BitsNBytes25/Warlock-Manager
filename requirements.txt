@@ -7,3 +7,4 @@ typer
 rcon
 typing_extensions
 systemdunitparser
+packaging
