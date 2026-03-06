@@ -512,8 +512,8 @@ class BaseApp(ABC):
 
 		# Add the new service to this list so it's immediately available
 		if self._svcs is None:
-			self._svcs = {}
-		self._svcs[service_name] = svc
+			self._svcs = []
+		self._svcs.append(svc)
 		self.services.append(service_name)
 
 	def detect_services(self) -> list:
