@@ -54,6 +54,13 @@ def app_runner(game: BaseApp):
 		)
 	]
 
+	arg_service_name_required = Annotated[
+		str,
+		typer.Option(
+			help='Name of service instance'
+		)
+	]
+
 	arg_max_backups = Annotated[
 		int,
 		typer.Option(
@@ -267,7 +274,7 @@ def app_runner(game: BaseApp):
 		sys.exit(0)
 
 	@app.command()
-	def create_service(service: str):
+	def create_service(service: arg_service_name_required):
 		"""
 		Create a new service instance for the game with the specified name
 
