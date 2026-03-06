@@ -917,6 +917,17 @@ class BaseService(ABC):
 		"""
 		self._delayed_action('restart')
 
+	def reload(self):
+		"""
+		Reload systemd unit files to pick up changes to service configurations.
+		:return:
+		"""
+		if os.geteuid() != 0:
+			print('ERROR - Unable to stop game service unless run with sudo', file=sys.stderr)
+			return
+
+		subprocess.Popen(['systemctl', 'daemon-reload'])
+
 	def cmd(self, cmd: str) -> None | str:
 		"""
 		Send a command to the game server via the API, if available
@@ -1046,7 +1057,7 @@ class BaseService(ABC):
 			print('Set %s to %s' % (port_config[0], max_port + 1))
 
 		# Reload systemd to pick up the new service
-		subprocess.Popen(['systemctl', 'daemon-reload'])
+		self.reload()
 
 	@abstractmethod
 	def get_executable(self) -> str:
