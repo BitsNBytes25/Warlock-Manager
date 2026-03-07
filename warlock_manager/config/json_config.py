@@ -24,9 +24,9 @@ class JSONConfig(BaseConfig):
 			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
 			return ''
 
-		key = self.options[name][1]
-		default = self.options[name][2]
-		val_type = self.options[name][3]
+		opt = self.options[name]
+
+		key = opt.key
 
 		lookup = self.data
 		if key.startswith('/'):
@@ -35,10 +35,10 @@ class JSONConfig(BaseConfig):
 			if part in lookup:
 				lookup = lookup[part]
 			else:
-				lookup = default
+				lookup = opt.default
 				break
 
-		return BaseConfig.convert_to_system_type(lookup, val_type)
+		return opt.to_system_type(lookup)
 
 	def set_value(self, name: str, value: Union[str, int, bool]):
 		"""
@@ -52,11 +52,12 @@ class JSONConfig(BaseConfig):
 			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
 			return
 
-		key = self.options[name][1]
-		val_type = self.options[name][3]
+		opt = self.options[name]
+
+		key = opt.key
 
 		# JSON files can store native types, so convert value accordingly
-		value = BaseConfig.convert_to_system_type(value, val_type)
+		value = opt.to_system_type(value)
 
 		if key.startswith('/'):
 			key = key[1:]
@@ -83,7 +84,7 @@ class JSONConfig(BaseConfig):
 		if name not in self.options:
 			return False
 
-		key = self.options[name][1]
+		key = self.options[name].key
 
 		lookup = self.data
 		if key.startswith('/'):

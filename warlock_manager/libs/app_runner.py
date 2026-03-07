@@ -369,6 +369,7 @@ def app_runner(game: BaseApp):
 				'type': source.get_option_type(opt),
 				'help': source.get_option_help(opt),
 				'options': source.get_option_options(opt),
+				'group': source.get_option_group(opt)
 			})
 		print(json.dumps(opts))
 		sys.exit(0)

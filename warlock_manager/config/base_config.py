@@ -3,6 +3,7 @@ import sys
 from typing import Union
 import yaml
 from abc import ABC
+from warlock_manager.config.config_key import ConfigKey, config_types
 
 
 class BaseConfig(ABC):
@@ -34,17 +35,9 @@ class BaseConfig(ABC):
 				for cfgname, cfgoptions in cfgdata.items():
 					if cfgname == group_name:
 						for option in cfgoptions:
-							self.add_option(
-								option.get('name'),
-								option.get('section'),
-								option.get('key'),
-								option.get('default', None),
-								option.get('type', 'str'),
-								option.get('help', ''),
-								option.get('options', None)
-							)
+							self.add_option(option)
 
-	def add_option(self, name, section, key, default='', val_type='str', help_text='', options=None):
+	def add_option(self, option_dict: dict):
 		"""
 		Add a configuration option to the available list
 
@@ -57,53 +50,26 @@ class BaseConfig(ABC):
 		:return:
 		"""
 
-		# Ensure boolean defaults are stored as strings
-		# They get re-converted back to bools on retrieval
-		if val_type == 'bool':
-			if default is True:
-				default = 'True'
-			elif default is False:
-				default = 'False'
-			elif default is None:
-				# No default specified, default to False
-				default = 'False'
-
-		if default is None:
-			default = ''
-
-		self.options[name] = (section, key, default, val_type, help_text, options)
+		key = ConfigKey.from_dict(option_dict)
+		self.options[key.name] = key
 		# Primary dictionary of all options on this config
 
-		self._keys[key.lower()] = name
+		self._keys[key.key.lower()] = key.name
 		# Map of lowercase option names to sections for quick lookup
 
-	@classmethod
-	def convert_to_system_type(cls, value: str, val_type: str) -> Union[str, int, bool]:
-		"""
-		Convert a string value to the appropriate system type
-		:param value:
-		:param val_type:
-		:return:
-		"""
-		# Auto convert
-		if value == '':
-			return ''
-		elif val_type == 'int':
-			return int(value)
-		elif val_type == 'bool':
-			return value.lower() in ('1', 'true', 'yes', 'on')
-		else:
-			return value
-
-	@classmethod
-	def convert_from_system_type(cls, value: Union[str, int, bool, list, float], val_type: str) -> Union[str, list]:
+	def from_system_type(self, name: str, value: config_types) -> Union[str, list]:
 		"""
 		Convert a system type value to a string for storage
+		:param name:
 		:param value:
-		:param val_type:
 		:return:
 		"""
-		if val_type == 'bool':
+		if name not in self.options:
+			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
+			return ''
+
+		opt = self.options[name]
+		if opt.val_type == 'bool':
 			if value == '':
 				# Allow empty values to defer to default
 				return ''
@@ -111,13 +77,13 @@ class BaseConfig(ABC):
 				return 'True'
 			else:
 				return 'False'
-		elif val_type == 'list':
+		elif opt.val_type == 'list':
 			if isinstance(value, list):
 				return value
 			else:
 				# Assume comma-separated string
 				return [item.strip() for item in str(value).split(',')]
-		elif val_type == 'float':
+		elif opt.val_type == 'float':
 			# Unreal likes floats to be stored with 6 decimal places
 			return f'{float(value):.6f}'
 		else:
@@ -151,7 +117,7 @@ class BaseConfig(ABC):
 		"""
 		pass
 
-	def get_default(self, name: str) -> Union[str, int, bool]:
+	def get_default(self, name: str) -> config_types:
 		"""
 		Get the default value of a configuration option
 		:param name:
@@ -161,10 +127,9 @@ class BaseConfig(ABC):
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return ''
 
-		default = self.options[name][2]
-		val_type = self.options[name][3]
+		opt = self.options[name]
 
-		return BaseConfig.convert_to_system_type(default, val_type)
+		return opt.to_system_type(opt.default)
 
 	def get_type(self, name: str) -> str:
 		"""
@@ -177,7 +142,7 @@ class BaseConfig(ABC):
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return ''
 
-		return self.options[name][3]
+		return self.options[name].val_type
 
 	def get_help(self, name: str) -> str:
 		"""
@@ -190,7 +155,7 @@ class BaseConfig(ABC):
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return ''
 
-		return self.options[name][4]
+		return self.options[name].help
 
 	def get_options(self, name: str):
 		"""
@@ -203,7 +168,7 @@ class BaseConfig(ABC):
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return None
 
-		return self.options[name][5]
+		return self.options[name].options
 
 	def exists(self) -> bool:
 		"""

@@ -26,11 +26,10 @@ class PropertiesConfig(BaseConfig):
 			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
 			return ''
 
-		key = self.options[name][1]
-		default = self.options[name][2]
-		val_type = self.options[name][3]
-		val = self.values.get(key, default)
-		return BaseConfig.convert_to_system_type(val, val_type)
+		opt = self.options[name]
+
+		val = self.values.get(opt.key, opt.default)
+		return opt.to_system_type(val)
 
 	def set_value(self, name: str, value: Union[str, int, bool]):
 		"""
@@ -44,11 +43,10 @@ class PropertiesConfig(BaseConfig):
 			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
 			return
 
-		key = self.options[name][1]
-		val_type = self.options[name][3]
-		str_value = BaseConfig.convert_from_system_type(value, val_type)
+		opt = self.options[name]
+		str_value = self.from_system_type(name, value)
 
-		self.values[key] = str_value
+		self.values[opt.key] = str_value
 
 	def has_value(self, name: str) -> bool:
 		"""
@@ -60,7 +58,7 @@ class PropertiesConfig(BaseConfig):
 		if name not in self.options:
 			return False
 
-		key = self.options[name][1]
+		key = self.options[name].key
 		return self.values.get(key, '') != ''
 
 	def exists(self) -> bool:

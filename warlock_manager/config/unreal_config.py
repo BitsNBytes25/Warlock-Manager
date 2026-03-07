@@ -27,30 +27,28 @@ class UnrealConfig(BaseConfig):
 			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
 			return ''
 
-		section = self.options[name][0]
-		key = self.options[name][1]
-		default = self.options[name][2]
-		val_type = self.options[name][3]
-		if section not in self._values:
-			val = default
+		opt = self.options[name]
+
+		if opt.section not in self._values:
+			val = opt.default
 		else:
-			if '/' in key:
+			if '/' in opt.key:
 				# Struct key
-				parts = key.split('/')
-				current = self._values[section]
+				parts = opt.key.split('/')
+				current = self._values[opt.section]
 				for part in parts:
 					if part in current:
 						current = current[part]
 					else:
-						current = default
+						current = opt.default
 						break
 				val = current
-			elif key not in self._values[section]:
-				val = default
+			elif opt.key not in self._values[opt.section]:
+				val = opt.default
 			else:
-				val = self._values[section][key]
+				val = self._values[opt.section][opt.key]
 
-		return BaseConfig.convert_to_system_type(val, val_type)
+		return opt.to_system_type(val)
 
 	def _find_or_create_value(self, section: list, key: str, str_value: Union[str, list]) -> list:
 		"""
@@ -135,33 +133,31 @@ class UnrealConfig(BaseConfig):
 			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
 			return
 
-		section = self.options[name][0]
-		key = self.options[name][1]
-		val_type = self.options[name][3]
-		str_value = BaseConfig.convert_from_system_type(value, val_type)
+		opt = self.options[name]
+		str_value = self.from_system_type(name, value)
 
-		if section not in self._values:
+		if opt.section not in self._values:
 			# Create the section
-			self._values[section] = {}
-			self._data.append([{'type': 'section', 'value': section}])
+			self._values[opt.section] = {}
+			self._data.append([{'type': 'section', 'value': opt.section}])
 
 		# Ensure the updated value is in the data structure
 		# First, find the section in the data
 		new_data = []
 		for sec in self._data:
-			if sec[0]['type'] == 'section' and sec[0]['value'] == section:
-				if '/' in key:
+			if sec[0]['type'] == 'section' and sec[0]['value'] == opt.section:
+				if '/' in opt.key:
 					# Struct key
-					new_data.append(self._find_or_create_struct_value(sec, key, str_value))
+					new_data.append(self._find_or_create_struct_value(sec, opt.key, str_value))
 				else:
 					# Found it, add the keyvalue or update existing
-					new_data.append(self._find_or_create_value(sec, key, str_value))
+					new_data.append(self._find_or_create_value(sec, opt.key, str_value))
 			else:
 				# Not matched, but keep the data
 				new_data.append(sec)
 
 		self._data = new_data
-		self._values[section][key] = str_value
+		self._values[opt.section][opt.key] = str_value
 		self._is_changed = True
 
 	def has_value(self, name: str) -> bool:
@@ -173,16 +169,15 @@ class UnrealConfig(BaseConfig):
 		"""
 		if name not in self.options:
 			return False
+		opt = self.options[name]
 
-		section = self.options[name][0]
-		key = self.options[name][1]
-		if section not in self._values:
+		if opt.section not in self._values:
 			return False
 		else:
-			if key not in self._values[section]:
+			if opt.key not in self._values[opt.section]:
 				return False
 			else:
-				return self._values[section][key] != ''
+				return self._values[opt.section][opt.key] != ''
 
 	def exists(self) -> bool:
 		"""

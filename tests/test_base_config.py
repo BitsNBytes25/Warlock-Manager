@@ -11,17 +11,29 @@ Key3=True
 '''
 
 
+class TestConfig(BaseConfig):
+    pass
+
+
 class TestUnrealConfig(unittest.TestCase):
 
     def test_type_conversions(self):
         # Ensure BaseConfig conversion helpers behave as expected
-        self.assertEqual(BaseConfig.convert_to_system_type('42', 'int'), 42)
-        self.assertEqual(BaseConfig.convert_to_system_type('True', 'bool'), True)
-        self.assertEqual(BaseConfig.convert_to_system_type('some', 'str'), 'some')
+        c = TestConfig('test')
+        c.add_option({
+            'name': 'TestBool',
+            'key': 'test-bool',
+            'type': 'bool',
+        })
+        c.add_option({
+            'name': 'TestInt',
+            'key': 'test-int',
+            'type': 'int',
+        })
 
-        self.assertEqual(BaseConfig.convert_from_system_type(True, 'bool'), 'True')
-        self.assertEqual(BaseConfig.convert_from_system_type(False, 'bool'), 'False')
-        self.assertEqual(BaseConfig.convert_from_system_type(5, 'int'), '5')
+        self.assertEqual('True', c.from_system_type('TestBool', True))
+        self.assertEqual('False', c.from_system_type('TestBool', False))
+        self.assertEqual('5', c.from_system_type('TestInt', 5))
 
 
 if __name__ == '__main__':

@@ -149,7 +149,7 @@ class BaseService(ABC):
 		"""
 		for config in self.configs.values():
 			if option in config.options:
-				return config.options[option][4]
+				return config.options[option].help
 
 		print('Invalid option: %s, not present in service configuration!' % option, file=sys.stderr)
 		return ''
@@ -164,6 +164,19 @@ class BaseService(ABC):
 		:return:
 		"""
 		pass
+
+	def get_option_group(self, option: str):
+		"""
+		Get the display group for a configuration option
+		:param option:
+		:return:
+		"""
+		for config in self.configs.values():
+			if option in config.options:
+				return config.options[option].group
+
+		print('Invalid option: %s, not present in service configuration!' % option, file=sys.stderr)
+		return 'Options'
 
 	def set_option(self, option: str, value: str | int | bool):
 		"""

@@ -22,9 +22,23 @@ class TestUnrealConfig(unittest.TestCase):
     def test_simple_data(self):
         cfg = UnrealConfig('test', os.path.join(here, 'data', 'unreal_simple.ini'))
         # Configs are grouped by named parameters, so let's add some options
-        cfg.add_option('Key1', 'SomeSection', 'Key1')
-        cfg.add_option('Key2', 'SomeSection', 'Key2', val_type='int')
-        cfg.add_option('Key3', 'SomeSection', 'Key3', val_type='bool')
+        cfg.add_option({
+            'name': 'Key1',
+            'section': 'SomeSection',
+            'key': 'Key1',
+        })
+        cfg.add_option({
+            'name': 'Key2',
+            'section': 'SomeSection',
+            'key': 'Key2',
+            'type': 'int'
+        })
+        cfg.add_option({
+            'name': 'Key3',
+            'section': 'SomeSection',
+            'key': 'Key3',
+            'type': 'bool'
+        })
         cfg.load()
 
         self.assertEqual(cfg.get_value('Key1'), 'Value1')
@@ -69,9 +83,23 @@ Key3=False
     def test_simple_create(self):
         cfg = UnrealConfig('test', os.path.join(here, 'data', 'unreal_simple.ini'))
         # Configs are grouped by named parameters, so let's add some options
-        cfg.add_option('Key1', 'SomeSection', 'Key1')
-        cfg.add_option('Key2', 'SomeSection', 'Key2', val_type='int')
-        cfg.add_option('Key3', 'SomeSection', 'Key3', val_type='bool')
+        cfg.add_option({
+            'name': 'Key1',
+            'section': 'SomeSection',
+            'key': 'Key1',
+        })
+        cfg.add_option({
+            'name': 'Key2',
+            'section': 'SomeSection',
+            'key': 'Key2',
+            'type': 'int'
+        })
+        cfg.add_option({
+            'name': 'Key3',
+            'section': 'SomeSection',
+            'key': 'Key3',
+            'type': 'bool'
+        })
         cfg.set_value('Key1', 'NewValue')
         cfg.set_value('Key2', 100)
         cfg.set_value('Key3', False)
@@ -86,8 +114,17 @@ Key3=False
 
     def test_duplicate_keys(self):
         cfg = UnrealConfig('test', os.path.join(here, 'data', 'unreal_duplicate_keys.ini'))
-        cfg.add_option('LastMapPlayed', 'Player.Info', 'LastMapPlayed')
-        cfg.add_option('PlayedMaps', 'Player.Info', 'PlayedMaps', val_type='list')
+        cfg.add_option({
+            'name': 'LastMapPlayed',
+            'section': 'Player.Info',
+            'key': 'LastMapPlayed',
+        })
+        cfg.add_option({
+            'name': 'PlayedMaps',
+            'section': 'Player.Info',
+            'key': 'PlayedMaps',
+            'type': 'list'
+        })
         cfg.load()
 
         # The last occurrence of the duplicate key should be the one that is loaded
@@ -123,8 +160,17 @@ PlayedMaps=NewMap2_WP
 
     def test_array_ops(self):
         cfg = UnrealConfig('test', os.path.join(here, 'data', 'unreal_array_ops.ini'))
-        cfg.add_option('NotAnArray', 'Operator Test', 'NotAnArray')
-        cfg.add_option('SomeValue', 'Operator Test', 'SomeValue', val_type='list')
+        cfg.add_option({
+            'name': 'NotAnArray',
+            'section': 'Operator Test',
+            'key': 'NotAnArray',
+        })
+        cfg.add_option({
+            'name': 'SomeValue',
+            'section': 'Operator Test',
+            'key': 'SomeValue',
+            'type': 'list'
+        })
         cfg.load()
 
         self.assertEqual(cfg.get_value('NotAnArray'), 'Hello')
@@ -140,9 +186,22 @@ PlayedMaps=NewMap2_WP
 
     def test_vein(self):
         cfg = UnrealConfig('test', os.path.join(here, 'data', 'unreal_vein.ini'))
-        cfg.add_option('Server Description', '/Script/Vein.VeinGameSession', 'ServerDescription')
-        cfg.add_option('Server Name', '/Script/Vein.VeinGameSession', 'ServerName')
-        cfg.add_option('API Port', '/Script/Vein.VeinGameSession', 'HTTPPort', val_type='int')
+        cfg.add_option({
+            'name': 'Server Description',
+            'section': '/Script/Vein.VeinGameSession',
+            'key': 'ServerDescription',
+        })
+        cfg.add_option({
+            'name': 'Server Name',
+            'section': '/Script/Vein.VeinGameSession',
+            'key': 'ServerName',
+        })
+        cfg.add_option({
+            'name': 'API Port',
+            'section': '/Script/Vein.VeinGameSession',
+            'key': 'HTTPPort',
+            'type': 'int'
+        })
         cfg.load()
 
         self.assertEqual(cfg.get_value('Server Description'), 'BitsNBytes VEIN Desc')
@@ -156,36 +215,36 @@ PlayedMaps=NewMap2_WP
 
     def test_palworld(self):
         cfg = UnrealConfig('test', os.path.join(here, 'data', 'unreal_palworld.ini'))
-        cfg.add_option(
-            'Difficulty',
-            '/Script/Pal.PalGameWorldSettings',
-            'OptionSettings/Difficulty',
-            val_type='str'
-        )
-        cfg.add_option(
-            'Randomizer Seed',
-            '/Script/Pal.PalGameWorldSettings',
-            'OptionSettings/RandomizerSeed',
-            val_type='str'
-        )
-        cfg.add_option(
-            'Randomizer Pal Level Random',
-            '/Script/Pal.PalGameWorldSettings',
-            'OptionSettings/bIsRandomizerPalLevelRandom',
-            val_type='bool'
-        )
-        cfg.add_option(
-            'Day Time Speed Rate',
-            '/Script/Pal.PalGameWorldSettings',
-            'OptionSettings/DayTimeSpeedRate',
-            val_type='float'
-        )
-        cfg.add_option(
-            'Crossplay Platforms',
-            '/Script/Pal.PalGameWorldSettings',
-            'OptionSettings/CrossplayPlatforms',
-            val_type='list'
-        )
+        cfg.add_option({
+            'name': 'Difficulty',
+            'section': '/Script/Pal.PalGameWorldSettings',
+            'key': 'OptionSettings/Difficulty',
+            'type': 'str'
+        })
+        cfg.add_option({
+            'name': 'Randomizer Seed',
+            'section': '/Script/Pal.PalGameWorldSettings',
+            'key': 'OptionSettings/RandomizerSeed',
+            'type': 'str'
+        })
+        cfg.add_option({
+            'name': 'Randomizer Pal Level Random',
+            'section': '/Script/Pal.PalGameWorldSettings',
+            'key': 'OptionSettings/bIsRandomizerPalLevelRandom',
+            'type': 'bool'
+        })
+        cfg.add_option({
+            'name': 'Day Time Speed Rate',
+            'section': '/Script/Pal.PalGameWorldSettings',
+            'key': 'OptionSettings/DayTimeSpeedRate',
+            'type': 'float'
+        })
+        cfg.add_option({
+            'name': 'Crossplay Platforms',
+            'section': '/Script/Pal.PalGameWorldSettings',
+            'key': 'OptionSettings/CrossplayPlatforms',
+            'type': 'list'
+        })
         cfg.load()
 
         self.assertEqual(cfg.get_value('Difficulty'), 'None')
@@ -204,30 +263,30 @@ PlayedMaps=NewMap2_WP
         :return:
         """
         cfg = UnrealConfig('test', '')
-        cfg.add_option(
-            'Randomizer Seed',
-            '/Script/Pal.PalGameWorldSettings',
-            'OptionSettings/RandomizerSeed',
-            val_type='str'
-        )
-        cfg.add_option(
-            'Randomizer Pal Level Random',
-            '/Script/Pal.PalGameWorldSettings',
-            'OptionSettings/bIsRandomizerPalLevelRandom',
-            val_type='bool'
-        )
-        cfg.add_option(
-            'Day Time Speed Rate',
-            '/Script/Pal.PalGameWorldSettings',
-            'OptionSettings/DayTimeSpeedRate',
-            val_type='float'
-        )
-        cfg.add_option(
-            'Crossplay Platforms',
-            '/Script/Pal.PalGameWorldSettings',
-            'OptionSettings/CrossplayPlatforms',
-            val_type='list'
-        )
+        cfg.add_option({
+            'name': 'Randomizer Seed',
+            'section': '/Script/Pal.PalGameWorldSettings',
+            'key': 'OptionSettings/RandomizerSeed',
+            'type': 'str'
+        })
+        cfg.add_option({
+            'name': 'Randomizer Pal Level Random',
+            'section': '/Script/Pal.PalGameWorldSettings',
+            'key': 'OptionSettings/bIsRandomizerPalLevelRandom',
+            'type': 'bool'
+        })
+        cfg.add_option({
+            'name': 'Day Time Speed Rate',
+            'section': '/Script/Pal.PalGameWorldSettings',
+            'key': 'OptionSettings/DayTimeSpeedRate',
+            'type': 'float'
+        })
+        cfg.add_option({
+            'name': 'Crossplay Platforms',
+            'section': '/Script/Pal.PalGameWorldSettings',
+            'key': 'OptionSettings/CrossplayPlatforms',
+            'type': 'list'
+        })
 
         cfg.set_value('Randomizer Seed', 'Random Seed')
         cfg.set_value('Randomizer Pal Level Random', True)

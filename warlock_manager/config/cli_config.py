@@ -3,6 +3,7 @@ import sys
 from typing import Union
 
 from warlock_manager.config.base_config import BaseConfig
+from warlock_manager.config.config_key import config_types
 
 
 class CLIConfig(BaseConfig):
@@ -37,7 +38,7 @@ class CLIConfig(BaseConfig):
 		If set, this will be used when saving the configuration back to file.
 		"""
 
-	def get_value(self, name: str) -> Union[str, int, bool]:
+	def get_value(self, name: str) -> config_types:
 		"""
 		Get a configuration option from the config
 
@@ -48,17 +49,8 @@ class CLIConfig(BaseConfig):
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return ''
 
-		default = self.options[name][2]
-		if default is None:
-			default = ''
-		val_type = self.options[name][3]
-		val = self.values.get(name, default)
-
-		if val_type == 'bool':
-			# CLI arguments treat booleans differently; they are true if they are present in general.
-			return val == '' or val.lower() == 'true'
-		else:
-			return BaseConfig.convert_to_system_type(val, val_type)
+		opt = self.options[name]
+		return self.values.get(name, opt.default)
 
 	def set_value(self, name: str, value: Union[str, int, bool]):
 		"""
@@ -71,10 +63,9 @@ class CLIConfig(BaseConfig):
 		if name not in self.options:
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return
+		opt = self.options[name]
 
-		val_type = self.options[name][3]
-		str_value = BaseConfig.convert_from_system_type(value, val_type)
-		self.values[name] = str_value
+		self.values[name] = opt.to_system_type(value)
 
 	def has_value(self, name: str) -> bool:
 		"""
@@ -186,7 +177,7 @@ class CLIConfig(BaseConfig):
 		# Build a simple list of known options by their key
 		opts = {}
 		for o in self.options:
-			opts[self.options[o][1]] = o
+			opts[self.options[o].key] = o
 
 		# Compare against known options and set values
 		for val in values:
@@ -221,7 +212,12 @@ class CLIConfig(BaseConfig):
 				print('Could not find option for key: %s' % (opt_key, ), file=sys.stderr)
 				continue
 
-			self.values[option] = opt_val
+			opt = self.options[option]
+
+			if opt.val_type == 'bool' and opt_group == 'flag':
+				# Flags with bool values are just present or not, so if we found it, it's True, even if it has a value of False.
+				opt_val = True
+			self.values[option] = opt.to_system_type(opt_val)
 
 	def save(self):
 		if self.path is not None and os.path.exists(self.path) and self.format is not None:
@@ -262,13 +258,13 @@ class CLIConfig(BaseConfig):
 				# Skip any options not set
 				continue
 
-			section = self.options[name][0]
-			key = self.options[name][1]
-			val_type = self.options[name][3]
-			raw_val = self.values[name]
+			opt = self.options[name]
+			val = self.values[name]
+			key = opt.key
+			section = opt.section
 
-			if val_type == 'bool':
-				if raw_val.lower() in ('true', '1', 'yes', ''):
+			if opt.val_type == 'bool':
+				if val:
 					if section == 'flag':
 						flags.append('-%s' % key)
 					else:
@@ -277,18 +273,23 @@ class CLIConfig(BaseConfig):
 					# Only include false options if they are options, not flags, since flags are just present or not.
 					# This fixes issues where a base config may set Key=True, but the user wants this instances to be Key=False.
 					opts.append('%s=False' % key)
+			elif opt.val_type == 'int' or opt.val_type == 'float':
+				if section == 'flag':
+					flags.append('-%s%s%s' % (key, self.flag_sep, str(val)))
+				else:
+					opts.append('%s=%s' % (key, str(val)))
 			else:
-				if '"' in raw_val:
-					raw_val = "'%s'" % raw_val
-				elif "'" in raw_val or ' ' in raw_val or '?' in raw_val or '=' in raw_val or '-' in raw_val:
-					raw_val = '"%s"' % raw_val
+				if '"' in val:
+					val = "'%s'" % val
+				elif "'" in val or ' ' in val or '?' in val or '=' in val or '-' in val:
+					val = '"%s"' % val
 
-				if raw_val != '':
+				if val != '':
 					# Only append keys that have values.
 					if section == 'flag':
-						flags.append('-%s%s%s' % (key, self.flag_sep, raw_val))
+						flags.append('-%s%s%s' % (key, self.flag_sep, val))
 					else:
-						opts.append('%s=%s' % (key, raw_val))
+						opts.append('%s=%s' % (key, val))
 
 		ret = []
 		if len(opts) > 0:

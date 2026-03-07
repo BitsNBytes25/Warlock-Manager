@@ -30,19 +30,18 @@ class INIConfig(BaseConfig):
 			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
 			return ''
 
-		section = self.options[name][0]
-		key = self.options[name][1]
-		default = self.options[name][2]
-		val_type = self.options[name][3]
+		opt = self.options[name]
+
+		section = opt.section
 
 		if section is None and self.spoof_group:
 			section = self.group
 
 		if section not in self.parser:
-			val = default
+			val = opt.default
 		else:
-			val = self.parser[section].get(key, default)
-		return BaseConfig.convert_to_system_type(val, val_type)
+			val = self.parser[section].get(opt.key, opt.default)
+		return opt.to_system_type(val)
 
 	def set_value(self, name: str, value: Union[str, int, bool]):
 		"""
@@ -56,10 +55,10 @@ class INIConfig(BaseConfig):
 			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
 			return
 
-		section = self.options[name][0]
-		key = self.options[name][1]
-		val_type = self.options[name][3]
-		str_value = BaseConfig.convert_from_system_type(value, val_type)
+		opt = self.options[name]
+
+		section = opt.section
+		str_value = self.from_system_type(name, value)
 
 		if section is None and self.spoof_group:
 			section = self.group
@@ -69,7 +68,7 @@ class INIConfig(BaseConfig):
 
 		if section not in self.parser:
 			self.parser[section] = {}
-		self.parser[section][key] = str_value
+		self.parser[section][opt.key] = str_value
 
 	def has_value(self, name: str) -> bool:
 		"""
@@ -81,8 +80,9 @@ class INIConfig(BaseConfig):
 		if name not in self.options:
 			return False
 
-		section = self.options[name][0]
-		key = self.options[name][1]
+		opt = self.options[name]
+
+		section = opt.section
 
 		if section is None and self.spoof_group:
 			section = self.group
@@ -90,7 +90,7 @@ class INIConfig(BaseConfig):
 		if section not in self.parser:
 			return False
 		else:
-			return self.parser[section].get(key, '') != ''
+			return self.parser[section].get(opt.key, '') != ''
 
 	def exists(self) -> bool:
 		"""
