@@ -1,6 +1,7 @@
 import datetime
+import logging
 import os
-import subprocess
+import shutil
 import sys
 import time
 from abc import abstractmethod, ABC
@@ -9,6 +10,7 @@ from SystemdUnitParser import SystemdUnitParser
 
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.libs.tui import prompt_yn, prompt_text
+from warlock_manager.libs.cmd import Cmd, BackgroundCmd
 
 
 class BaseService(ABC):
@@ -109,7 +111,7 @@ class BaseService(ABC):
 			if option in config.options:
 				return config.get_value(option)
 
-		print('Invalid option: %s, not present in service configuration!' % option, file=sys.stderr)
+		logging.warning('Invalid option: %s, not present in service configuration!' % option)
 		return ''
 
 	def get_option_default(self, option: str) -> str:
@@ -309,10 +311,7 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		pid = subprocess.run([
-			'systemctl', 'show', '-p', 'MainPID', self.service
-		], stdout=subprocess.PIPE).stdout.decode().strip()[8:]
-
+		pid = Cmd(['systemctl', 'show', '-p', 'MainPID', self.service]).text[8:]
 		return int(pid)
 
 	def get_process_status(self) -> int:
@@ -321,9 +320,8 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		return int(subprocess.run([
-			'systemctl', 'show', '-p', 'ExecMainStatus', self.service
-		], stdout=subprocess.PIPE).stdout.decode().strip()[15:])
+		code = Cmd(['systemctl', 'show', '-p', 'ExecMainStatus', self.service]).text[15:]
+		return int(code)
 
 	@abstractmethod
 	def get_game_pid(self) -> int:
@@ -349,9 +347,7 @@ class BaseService(ABC):
 		if pid == 0 or pid is None:
 			return 'N/A'
 
-		mem = subprocess.run([
-			'ps', 'h', '-p', str(pid), '-o', 'rss'
-		], stdout=subprocess.PIPE).stdout.decode().strip()
+		mem = Cmd(['ps', 'h', '-p', str(pid), '-o', 'rss']).text
 
 		if mem.isdigit():
 			mem = int(mem)
@@ -378,9 +374,7 @@ class BaseService(ABC):
 		if pid == 0 or pid is None:
 			return 'N/A'
 
-		cpu = subprocess.run([
-			'ps', 'h', '-p', str(pid), '-o', '%cpu'
-		], stdout=subprocess.PIPE).stdout.decode().strip()
+		cpu = Cmd(['ps', 'h', '-p', str(pid), '-o', '%cpu']).text
 
 		if cpu.replace('.', '', 1).isdigit():
 			return '%.0f%%' % float(cpu)
@@ -443,9 +437,7 @@ class BaseService(ABC):
 		:return:
 		"""
 
-		output = subprocess.run([
-			'systemctl', 'show', '-p', lookup, self.service
-		], stdout=subprocess.PIPE).stdout.decode().strip()[len(lookup) + 1:]
+		output = Cmd(['systemctl', 'show', '-p', lookup, self.service]).text[len(lookup) + 1:]
 		if output == '':
 			return None
 
@@ -508,12 +500,7 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		return subprocess.run(
-			['systemctl', 'is-enabled', self.service],
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE,
-			check=False
-		).stdout.decode().strip()
+		return Cmd(['systemctl', 'is-enabled', self.service]).text
 
 	def _is_active(self) -> str:
 		"""
@@ -530,12 +517,7 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		return subprocess.run(
-			['systemctl', 'is-active', self.service],
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE,
-			check=False
-		).stdout.decode().strip()
+		return Cmd(['systemctl', 'is-active', self.service]).text
 
 	def is_enabled(self) -> bool:
 		"""
@@ -586,7 +568,7 @@ class BaseService(ABC):
 		if os.geteuid() != 0:
 			print('ERROR - Unable to enable game service unless run with sudo', file=sys.stderr)
 			return
-		subprocess.run(['systemctl', 'enable', self.service])
+		Cmd(['systemctl', 'enable', self.service]).run()
 
 	def disable(self):
 		"""
@@ -597,7 +579,7 @@ class BaseService(ABC):
 		if os.geteuid() != 0:
 			print('ERROR - Unable to disable game service unless run with sudo', file=sys.stderr)
 			return
-		subprocess.run(['systemctl', 'disable', self.service])
+		Cmd(['systemctl', 'disable', self.service]).run()
 
 	def print_logs(self, lines: int = 20):
 		"""
@@ -606,7 +588,7 @@ class BaseService(ABC):
 		:param lines:
 		:return:
 		"""
-		subprocess.run(['journalctl', '-qu', self.service, '-n', str(lines), '--no-pager'])
+		print(self.get_logs(lines))
 
 	def get_logs(self, lines: int = 20) -> str:
 		"""
@@ -615,10 +597,7 @@ class BaseService(ABC):
 		:param lines:
 		:return:
 		"""
-		return subprocess.run(
-			['journalctl', '-qu', self.service, '-n', str(lines), '--no-pager'],
-			stdout=subprocess.PIPE
-		).stdout.decode()
+		return Cmd(['journalctl', '-qu', self.service, '-n', str(lines), '--no-pager']).text
 
 	def send_message(self, message: str):
 		"""
@@ -681,7 +660,7 @@ class BaseService(ABC):
 		try:
 			print('Starting game via systemd, please wait a minute...')
 			start_timer = time.time()
-			subprocess.Popen(['systemctl', 'start', self.service])
+			BackgroundCmd(['systemctl', 'start', self.service]).run()
 			time.sleep(10)
 
 			ready = False
@@ -898,7 +877,7 @@ class BaseService(ABC):
 			return
 
 		print('Stopping server, please wait...')
-		subprocess.Popen(['systemctl', 'stop', self.service])
+		BackgroundCmd(['systemctl', 'stop', self.service]).run()
 		time.sleep(10)
 
 	def delayed_stop(self):
@@ -939,7 +918,7 @@ class BaseService(ABC):
 			print('ERROR - Unable to stop game service unless run with sudo', file=sys.stderr)
 			return
 
-		subprocess.Popen(['systemctl', 'daemon-reload'])
+		Cmd(['systemctl', 'daemon-reload']).run()
 
 	def cmd(self, cmd: str) -> None | str:
 		"""
@@ -1042,14 +1021,14 @@ class BaseService(ABC):
 
 		# Build the systemd service file for this service
 		self.build_systemd_config()
-		print('Created systemd service file for %s at %s' % (self.service, self._service_file))
+		logging.info('Created systemd service file for %s at %s' % (self.service, self._service_file))
 
 		# Save the environmental variable file for this service
 		with open(self._env_file, 'w') as f:
 			env = self.get_environment()
 			for key in env:
 				f.write('%s=%s\n' % (key, env[key]))
-		print('Created environment file for %s at %s' % (self.service, self._env_file))
+		logging.info('Created environment file for %s at %s' % (self.service, self._env_file))
 		self.game.ensure_file_ownership(self._env_file)
 
 		# Grab the ports from this service and try to automatically update them to the next available port
@@ -1067,9 +1046,39 @@ class BaseService(ABC):
 				max_port = max(max_port, svc.get_option_value(port_config[0]) or 0)
 
 			self.set_option(port_config[0], max_port + 1)
-			print('Set %s to %s' % (port_config[0], max_port + 1))
+			logging.info('Set %s to %s' % (port_config[0], max_port + 1))
 
 		# Reload systemd to pick up the new service
+		self.reload()
+
+		# Ensure the target directory for this service exists and has the correct ownership
+		target_dir = self.get_app_directory()
+		if not os.path.exists(target_dir):
+			os.makedirs(target_dir)
+			logging.info('Created app directory for %s at %s' % (self.service, target_dir))
+			self.game.ensure_file_ownership(target_dir)
+
+	def remove_service(self):
+		"""
+		Remove the systemd service for this game, including the service file and environment file
+		:return:
+		"""
+		if os.path.exists(self._service_file):
+			os.remove(self._service_file)
+			logging.info('Removed systemd service file for %s at %s' % (self.service, self._service_file))
+
+		if os.path.exists(self._env_file):
+			os.remove(self._env_file)
+			logging.info('Removed environment file for %s at %s' % (self.service, self._env_file))
+
+		target_dir = self.get_app_directory()
+		app_dir = self.game.get_app_directory()
+		if target_dir != app_dir and os.path.exists(target_dir):
+			# Only remove app directory if it's different than the game app.
+			# This is important because by default game instances share the same application base.
+			shutil.rmtree(target_dir)
+			logging.info('Removed app directory for %s at %s' % (self.service, target_dir))
+
 		self.reload()
 
 	@abstractmethod

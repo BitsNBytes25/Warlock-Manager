@@ -529,6 +529,26 @@ class BaseApp(ABC):
 		self._svcs.append(svc)
 		self.services.append(service_name)
 
+		return svc
+
+	def remove_service(self, service_name: str):
+		"""
+		Remove a service instance for this game with the given name
+
+		:param service_name:
+		:return:
+		"""
+		svc = self.get_service(service_name)
+		if not svc:
+			raise Exception('Service instance %s does not exist!' % service_name)
+
+		svc.remove_service()
+
+		if self._svcs is not None:
+			self._svcs = [s for s in self._svcs if s.service != service_name]
+		if service_name in self.services:
+			self.services.remove(service_name)
+
 	def detect_services(self) -> list:
 		"""
 		Try to detect available services for this game.

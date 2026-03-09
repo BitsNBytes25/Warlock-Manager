@@ -1,5 +1,7 @@
-import subprocess
-import re
+import logging
+
+from warlock_manager.libs.version import extract_version_from_string, parse_version
+from warlock_manager.libs.cmd import Cmd
 
 
 def get_java_paths() -> list[str]:
@@ -8,35 +10,18 @@ def get_java_paths() -> list[str]:
 
 	:return: A list of paths to Java executables
 	"""
-	java_paths = []
 
 	# Try update-alternatives first (Debian-based distros)
-	try:
-		result = subprocess.run(
-			['update-alternatives', '--list', 'java'],
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE,
-			text=True
-		)
-		if result.returncode == 0:
-			java_paths.extend(result.stdout.strip().split('\n'))
-	except FileNotFoundError:
-		pass
+	cmd = Cmd(['update-alternatives', '--list', 'java'])
+	if cmd.success:
+		return cmd.lines
 
 	# Fall back to alternatives (RHEL-based distros)
-	try:
-		result = subprocess.run(
-			['alternatives', '--list', 'java'],
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE,
-			text=True
-		)
-		if result.returncode == 0:
-			java_paths.extend([line.split()[1] for line in result.stdout.strip().split('\n') if line.strip()])
-	except FileNotFoundError:
-		pass
+	cmd = Cmd(['alternatives', '--list', 'java'])
+	if cmd.success:
+		return [line.split()[2] for line in cmd.lines]
 
-	return java_paths
+	return []
 
 
 def find_java_version(version: int) -> str:
@@ -65,25 +50,24 @@ def _check_java_versions(java_paths: list[str], target_version: int) -> str | No
 	:param target_version: The major Java version to find
 	:return: The path to the matching Java executable, or None if not found
 	"""
+	logging.debug('Searching for Java version %d' % target_version)
 	for java_path in java_paths:
-		try:
-			result = subprocess.run(
-				[java_path, '--version'],
-				stdout=subprocess.PIPE,
-				stderr=subprocess.STDOUT,
-				text=True,
-				timeout=5
-			)
+		result = Cmd([java_path, '-version'])
+		# Java version information is typically printed to stderr, so we need to use that instead of stdout.
+		result.use_stderr()
 
+		if result.success and len(result.lines) > 0:
 			# Parse the version output
-			# Java version output looks like "openjdk 11.0.x" or "java 17.0.x"
-			version_match = re.search(r'(\d+)\.(\d+)', result.stdout)
-			if version_match:
-				major_version = int(version_match.group(1))
-				if major_version == target_version:
+			version_str = result.lines[0]
+			# Use the version library to parse this version string.
+			version_str = extract_version_from_string(version_str)
+			version = parse_version(version_str)
+			logging.debug('%s => %s' % (java_path, version))
+			if version.major == 1:
+				# For Java 8 and earlier, the version string starts with "1.", so we need to check the minor version
+				if version.minor == target_version:
 					return java_path
-		except (subprocess.TimeoutExpired, OSError, ValueError):
-			# Skip this path if we can't execute it or parse the version
-			continue
+			elif version.major == target_version:
+				return java_path
 
 	return None

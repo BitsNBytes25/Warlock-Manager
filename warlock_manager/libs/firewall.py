@@ -1,4 +1,4 @@
-import subprocess
+from warlock_manager.libs.cmd import Cmd
 
 
 class Firewall:
@@ -21,24 +21,21 @@ class Firewall:
 
 		# Check for UFW
 		try:
-			ufw_status = subprocess.run(['ufw', 'status'], capture_output=True, text=True)
-			if 'Status: active' in ufw_status.stdout:
+			if 'Status: active' in Cmd(['ufw', 'status']).text:
 				return 'ufw'
 		except FileNotFoundError:
 			pass
 
 		# Check for Firewalld
 		try:
-			firewalld_status = subprocess.run(['firewall-cmd', '--state'], capture_output=True, text=True)
-			if 'running' in firewalld_status.stdout:
+			if 'running' in Cmd(['firewall-cmd', '--state']).text:
 				return 'firewalld'
 		except FileNotFoundError:
 			pass
 
 		# Check for iptables
 		try:
-			iptables_status = subprocess.run(['iptables', '-L'], capture_output=True, text=True)
-			if iptables_status.returncode == 0:
+			if Cmd(['iptables', '-L']).success:
 				return 'iptables'
 		except FileNotFoundError:
 			pass
@@ -56,25 +53,16 @@ class Firewall:
 		"""
 
 		# Check for UFW
-		try:
-			subprocess.run(['ufw', '--version'], capture_output=True, text=True)
+		if Cmd(['ufw', '--version']).success:
 			return 'ufw'
-		except FileNotFoundError:
-			pass
 
 		# Check for Firewalld
-		try:
-			subprocess.run(['firewall-cmd', '--version'], capture_output=True, text=True)
+		if Cmd(['firewall-cmd', '--version']).success:
 			return 'firewalld'
-		except FileNotFoundError:
-			pass
 
 		# Check for iptables
-		try:
-			subprocess.run(['iptables', '--version'], capture_output=True, text=True)
+		if Cmd(['iptables', '--version']).success:
 			return 'iptables'
-		except FileNotFoundError:
-			pass
 
 		return None
 
@@ -93,22 +81,21 @@ class Firewall:
 		firewall = cls.get_available()
 
 		if firewall == 'ufw':
-			cmd = ['ufw', 'allow', f'{port}/{protocol}']
+			cmd = Cmd(['ufw', 'allow', f'{port}/{protocol}'])
 			if comment:
 				cmd.extend(['comment', comment])
-			subprocess.run(cmd, check=True)
+			cmd.run()
 
 		elif firewall == 'firewalld':
-			cmd = ['firewall-cmd', '--permanent', '--add-port', f'{port}/{protocol}']
-			subprocess.run(cmd, check=True)
-			subprocess.run(['firewall-cmd', '--reload'], check=True)
+			Cmd(['firewall-cmd', '--permanent', '--add-port', f'{port}/{protocol}']).run()
+			Cmd(['firewall-cmd', '--reload']).run()
 
 		elif firewall == 'iptables':
-			cmd = ['iptables', '-A', 'INPUT', '-p', protocol, '--dport', str(port), '-j', 'ACCEPT']
+			cmd = Cmd(['iptables', '-A', 'INPUT', '-p', protocol, '--dport', str(port), '-j', 'ACCEPT'])
 			if comment:
 				cmd.extend(['-m', 'comment', '--comment', comment])
-			subprocess.run(cmd, check=True)
-			subprocess.run(['service', 'iptables', 'save'], check=True)
+			cmd.run()
+			Cmd(['service', 'iptables', 'save']).run()
 
 		else:
 			raise OSError("No supported firewall found on the system.")
@@ -127,18 +114,15 @@ class Firewall:
 		firewall = cls.get_available()
 
 		if firewall == 'ufw':
-			cmd = ['ufw', 'delete', 'allow', f'{port}/{protocol}']
-			subprocess.run(cmd, check=True)
+			Cmd(['ufw', 'delete', 'allow', f'{port}/{protocol}']).run()
 
 		elif firewall == 'firewalld':
-			cmd = ['firewall-cmd', '--permanent', '--remove-port', f'{port}/{protocol}']
-			subprocess.run(cmd, check=True)
-			subprocess.run(['firewall-cmd', '--reload'], check=True)
+			Cmd(['firewall-cmd', '--permanent', '--remove-port', f'{port}/{protocol}']).run()
+			Cmd(['firewall-cmd', '--reload']).run()
 
 		elif firewall == 'iptables':
-			cmd = ['iptables', '-D', 'INPUT', '-p', protocol, '--dport', str(port), '-j', 'ACCEPT']
-			subprocess.run(cmd, check=True)
-			subprocess.run(['service', 'iptables', 'save'], check=True)
+			Cmd(['iptables', '-D', 'INPUT', '-p', protocol, '--dport', str(port), '-j', 'ACCEPT']).run()
+			Cmd(['service', 'iptables', 'save']).run()
 
 		else:
 			raise OSError("No supported firewall found on the system.")

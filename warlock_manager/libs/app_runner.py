@@ -28,15 +28,13 @@ def app_runner(game: BaseApp):
 				return svc
 		raise typer.BadParameter('Service instance %s not found!' % value)
 
-	@app.callback()
-	def main(
-		debug: Annotated[
-			bool,
-			typer.Option(help='Enable debug logging output', is_flag=True)
-		] = False
-	):
-		if debug:
-			logging.basicConfig(level=logging.DEBUG)
+	arg_debug = Annotated[
+		bool,
+		typer.Option(
+			help='Enable debug logging output',
+			is_flag=True
+		)
+	]
 
 	arg_service_optional = Annotated[
 		str | None,
@@ -76,6 +74,14 @@ def app_runner(game: BaseApp):
 			readable=True
 		)
 	]
+
+	@app.callback()
+	def main(
+		debug: arg_debug = False
+	):
+		if debug:
+			logging.basicConfig(level=logging.DEBUG, force=True)
+			logging.debug('Debug logging enabled')
 
 	@app.command()
 	def start(service: arg_service_optional = None):
@@ -281,7 +287,28 @@ def app_runner(game: BaseApp):
 		:param service:
 		:return:
 		"""
-		sys.exit(0 if game.create_service(service) else 1)
+		try:
+			new_service = game.create_service(service)
+			print(new_service.service)
+			sys.exit(0)
+		except Exception as e:
+			print('Error creating service instance: %s' % str(e), file=sys.stderr)
+			sys.exit(1)
+
+	@app.command()
+	def remove_service(service: arg_service_name_required):
+		"""
+		Remove a service instance for the game with the specified name
+
+		:param service:
+		:return:
+		"""
+		try:
+			game.remove_service(service)
+			sys.exit(0)
+		except Exception as e:
+			print('Error removing service instance: %s' % str(e), file=sys.stderr)
+			sys.exit(1)
 
 	@app.command()
 	def get_metrics(service: arg_service_optional = None):

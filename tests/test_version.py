@@ -72,13 +72,13 @@ class TestVersionBooleanComparisons(unittest.TestCase):
 	"""Test boolean version comparison helpers"""
 
 	def test_is_version_newer(self):
-		self.assertTrue(is_version_newer("1.0.0", "2.0.0"))
-		self.assertFalse(is_version_newer("2.0.0", "1.0.0"))
+		self.assertFalse(is_version_newer("1.0.0", "2.0.0"))
+		self.assertTrue(is_version_newer("2.0.0", "1.0.0"))
 		self.assertFalse(is_version_newer("1.0.0", "1.0.0"))
 
 	def test_is_version_older(self):
-		self.assertTrue(is_version_older("2.0.0", "1.0.0"))
-		self.assertFalse(is_version_older("1.0.0", "2.0.0"))
+		self.assertFalse(is_version_older("2.0.0", "1.0.0"))
+		self.assertTrue(is_version_older("1.0.0", "2.0.0"))
 		self.assertFalse(is_version_older("1.0.0", "1.0.0"))
 
 	def test_is_version_equal(self):
@@ -140,6 +140,15 @@ class TestVersionExtraction(unittest.TestCase):
 	def test_extract_no_version(self):
 		result = extract_version_from_string("No version here")
 		self.assertIsNone(result)
+
+	def test_extract_java_version(self):
+		result = extract_version_from_string('openjdk version "21.0.10" 2026-01-20 LTS')
+		self.assertIsNotNone(result)
+		self.assertEquals("21.0.10", result)
+
+		result = extract_version_from_string('openjdk version "1.8.0_482"')
+		self.assertIsNotNone(result)
+		self.assertEquals("1.8.0", result)
 
 
 class TestVersionNormalization(unittest.TestCase):

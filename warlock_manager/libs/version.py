@@ -46,7 +46,7 @@ def is_version_newer(current: str | Version, candidate: str | Version) -> bool:
 	:param candidate: The candidate version to check
 	:return: True if candidate is newer than current
 	"""
-	return compare_versions(current, candidate) < 0
+	return compare_versions(candidate, current) < 0
 
 
 def is_version_older(current: str | Version, candidate: str | Version) -> bool:
@@ -57,7 +57,7 @@ def is_version_older(current: str | Version, candidate: str | Version) -> bool:
 	:param candidate: The candidate version to check
 	:return: True if candidate is older than current
 	"""
-	return compare_versions(current, candidate) > 0
+	return compare_versions(candidate, current) > 0
 
 
 def is_version_equal(version1: str | Version, version2: str | Version) -> bool:

@@ -2,11 +2,10 @@ import os
 import re
 import sys
 import time
-import subprocess
 from abc import ABC
-from typing import Union
 
 from .base_app import BaseApp
+from ..libs.cmd import Cmd, BackgroundCmd
 
 
 def guess_steamcmd_path() -> str:
@@ -22,65 +21,6 @@ def guess_steamcmd_path() -> str:
 		if os.path.exists(path):
 			return path
 	raise FileNotFoundError('steamcmd not found in common locations. Please ensure steamcmd is installed.')
-
-
-def steamcmd_get_app_details(app_id: str) -> Union[dict, None]:
-	"""
-	Get detailed information about a Steam app using steamcmd
-
-	Returns a dictionary with:
-
-	- common
-		- name
-		- type
-		- parent
-		- ReleaseState
-		- oslist
-		- osarch
-		- osextended
-		- icon
-		- clienticon
-		- clienttga
-		- freetodownload
-		- associations
-		- gameid
-	- extended
-		- gamedir
-	- config
-		- installdir
-		- launch
-		- uselaunchcommandline
-	- depots
-
-	:param app_id:
-	:param steamcmd_path:
-	:return:
-	"""
-
-	# Construct the command to get app details
-	command = [
-		guess_steamcmd_path(),
-		"+login", "anonymous",
-		"+app_info_update", "1",
-		"+app_info_print", str(app_id),
-		"+quit"
-	]
-
-	try:
-		# Run the steamcmd command
-		result = subprocess.run(command, capture_output=True, text=True, check=True)
-
-		# Output from command should be Steam manifest format, parse it
-		dat = steamcmd_parse_manifest(result.stdout)
-		if app_id in dat:
-			return dat[app_id]
-		else:
-			print(f"App ID {app_id} not found in steamcmd output.", file=sys.stderr)
-			return None
-
-	except subprocess.CalledProcessError as e:
-		print(f"Error running steamcmd: {e}")
-		return None
 
 
 def steamcmd_parse_manifest(manifest_content):
@@ -265,49 +205,6 @@ def steamcmd_parse_manifest(manifest_content):
 	return current_dict
 
 
-def steamcmd_check_app_update(app_manifest: str):
-	if not os.path.exists(app_manifest):
-		print(f"App manifest file {app_manifest} does not exist.", file=sys.stderr)
-		return False
-
-	# App manifest is a local copy of the app JSON data
-	with open(app_manifest, 'r') as f:
-		details = steamcmd_parse_manifest(f.read())
-
-	if 'AppState' not in details:
-		print(f"Invalid app manifest format in {app_manifest}.", file=sys.stderr)
-		return False
-
-	# Pull local data about the installed game from its manifest file
-	app_id = details['AppState']['appid']
-	build_id = details['AppState']['buildid']
-
-	if 'MountedConfig' in details['AppState'] and 'BetaKey' in details['AppState']['MountedConfig']:
-		branch = details['AppState']['MountedConfig']['BetaKey']
-	else:
-		branch = 'public'
-
-	# Pull the latest app details from SteamCMD
-	details = steamcmd_get_app_details(app_id)
-
-	# Ensure some basic data integrity
-	if 'depots' not in details:
-		print(f"No depot information found for app {app_id}.", file=sys.stderr)
-		return False
-
-	if 'branches' not in details['depots']:
-		print(f"No branch information found for app {app_id}.", file=sys.stderr)
-		return False
-
-	if branch not in details['depots']['branches']:
-		print(f"Branch {branch} not found for app {app_id}.", file=sys.stderr)
-		return False
-
-	# Just check if the build IDs differ
-	available_build_id = details['depots']['branches'][branch]['buildid']
-	return build_id != available_build_id
-
-
 class SteamApp(BaseApp, ABC):
 	"""
 	Game application manager
@@ -319,14 +216,108 @@ class SteamApp(BaseApp, ABC):
 		self.steam_branch = 'public'
 		self.steam_branch_password = ''
 
+	def get_app_details(self) -> dict | None:
+		"""
+		Get detailed information about a Steam app using steamcmd
+
+		Returns a dictionary with:
+
+		- common
+			- name
+			- type
+			- parent
+			- ReleaseState
+			- oslist
+			- osarch
+			- osextended
+			- icon
+			- clienticon
+			- clienttga
+			- freetodownload
+			- associations
+			- gameid
+		- extended
+			- gamedir
+		- config
+			- installdir
+			- launch
+			- uselaunchcommandline
+		- depots
+
+		:param app_id:
+		:param steamcmd_path:
+		:return:
+		"""
+
+		# Construct the command to get app details
+		command = [
+			guess_steamcmd_path(),
+			"+login", "anonymous",
+			"+app_info_update", "1",
+			"+app_info_print", str(self.steam_id),
+			"+quit"
+		]
+
+		# Run the steamcmd command
+		cmd = Cmd(command)
+		cmd.sudo(self.get_app_uid())
+
+		# Output from command should be Steam manifest format, parse it
+		dat = steamcmd_parse_manifest(cmd.text)
+		if self.steam_id in dat:
+			return dat[self.steam_id]
+		else:
+			print(f"App ID {self.steam_id} not found in steamcmd output.", file=sys.stderr)
+			return None
+
 	def check_update_available(self) -> bool:
 		"""
 		Check if a SteamCMD update is available for this game
 
 		:return:
 		"""
-		here = os.path.dirname(os.path.realpath(sys.argv[0]))
-		return steamcmd_check_app_update(os.path.join(here, 'AppFiles', 'steamapps', 'appmanifest_%s.acf' % self.steam_id))
+		app_manifest = os.path.join(self.get_app_directory(), 'AppFiles', 'steamapps', 'appmanifest_%s.acf' % self.steam_id)
+
+		if not os.path.exists(app_manifest):
+			print(f"App manifest file {app_manifest} does not exist.", file=sys.stderr)
+			return False
+
+		# App manifest is a local copy of the app JSON data
+		with open(app_manifest, 'r') as f:
+			details = steamcmd_parse_manifest(f.read())
+
+		if 'AppState' not in details:
+			print(f"Invalid app manifest format in {app_manifest}.", file=sys.stderr)
+			return False
+
+		# Pull local data about the installed game from its manifest file
+		app_id = details['AppState']['appid']
+		build_id = details['AppState']['buildid']
+
+		if 'MountedConfig' in details['AppState'] and 'BetaKey' in details['AppState']['MountedConfig']:
+			branch = details['AppState']['MountedConfig']['BetaKey']
+		else:
+			branch = 'public'
+
+		# Pull the latest app details from SteamCMD
+		latest = self.get_app_details()
+
+		# Ensure some basic data integrity
+		if 'depots' not in latest:
+			print(f"No depot information found for app {app_id}.", file=sys.stderr)
+			return False
+
+		if 'branches' not in latest['depots']:
+			print(f"No branch information found for app {app_id}.", file=sys.stderr)
+			return False
+
+		if branch not in latest['depots']['branches']:
+			print(f"Branch {branch} not found for app {app_id}.", file=sys.stderr)
+			return False
+
+		# Just check if the build IDs differ
+		available_build_id = latest['depots']['branches'][branch]['buildid']
+		return build_id != available_build_id
 
 	def update(self):
 		"""
@@ -340,7 +331,7 @@ class SteamApp(BaseApp, ABC):
 			if service.is_running() or service.is_starting():
 				print('Stopping service %s for update...' % service.service)
 				services.append(service.service)
-				subprocess.Popen(['systemctl', 'stop', service.service])
+				BackgroundCmd(['systemctl', 'stop', service.service]).run()
 
 		if len(services) > 0:
 			# Wait for all services to stop, may take 5 minutes if players are online.
@@ -359,16 +350,16 @@ class SteamApp(BaseApp, ABC):
 		else:
 			print('No running services found, proceeding with update...')
 
-		here = os.path.dirname(os.path.realpath(sys.argv[0]))
-		cmd = [
+		cmd = Cmd([
 			guess_steamcmd_path(),
 			'+force_install_dir',
-			os.path.join(here, 'AppFiles'),
+			os.path.join(self.get_app_directory(), 'AppFiles'),
 			'+login',
 			'anonymous',
 			'+app_update',
 			self.steam_id,
-		]
+		])
+		cmd.sudo(self.get_app_uid())
 
 		if self.steam_branch != 'public':
 			cmd.append('-beta')
@@ -380,16 +371,7 @@ class SteamApp(BaseApp, ABC):
 		cmd.append('validate')
 		cmd.append('+quit')
 
-		if os.geteuid() == 0:
-			stat_info = os.stat(here)
-			uid = stat_info.st_uid
-			cmd = [
-				'sudo',
-				'-u',
-				'#%s' % uid
-			] + cmd
-
-		res = subprocess.run(cmd)
+		cmd.run()
 
 		# Allow the game to perform any post-update tasks
 		self.post_update()
@@ -397,7 +379,7 @@ class SteamApp(BaseApp, ABC):
 		if len(services) > 0:
 			print('Update completed, restarting previously running services...')
 			for service in services:
-				subprocess.Popen(['systemctl', 'start', service])
+				BackgroundCmd(['systemctl', 'start', service]).run()
 				time.sleep(10)
 
-		return res.returncode == 0
+		return cmd.success
