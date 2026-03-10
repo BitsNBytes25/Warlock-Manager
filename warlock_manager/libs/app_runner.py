@@ -1,12 +1,10 @@
 import json
 import logging
 import sys
-from pathlib import Path
 import typer
 from typing import Annotated
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.services.base_service import BaseService
-from warlock_manager.libs.get_wan_ip import get_wan_ip
 
 
 def app_runner(game: BaseApp):
@@ -67,11 +65,9 @@ def app_runner(game: BaseApp):
 	]
 
 	arg_restore = Annotated[
-		Path,
+		str,
 		typer.Argument(
-			help='Path to backup to restore from',
-			exists=True,
-			readable=True
+			help='Path to backup to restore from'
 		)
 	]
 
@@ -184,24 +180,24 @@ def app_runner(game: BaseApp):
 			sys.exit(0)
 
 	@app.command()
-	def backup(max_backups: arg_max_backups = 0):
+	def backup(service: arg_service_required, max_backups: arg_max_backups = 0):
 		"""
 		Create a backup of the game, keeping a maximum number of backups if specified
 
 		:param max_backups:
 		:return:
 		"""
-		sys.exit(0 if game.backup(max_backups) else 1)
+		sys.exit(0 if service.backup(max_backups) else 1)
 
 	@app.command()
-	def restore(restore_path: arg_restore):
+	def restore(service: arg_service_required, restore_path: arg_restore):
 		"""
 		Restore a backup of the game from the specified path
 
 		:param restore_path:
 		:return:
 		"""
-		sys.exit(0 if game.restore(str(restore_path)) else 1)
+		sys.exit(0 if service.restore(str(restore_path)) else 1)
 
 	@app.command()
 	def check_update():
@@ -267,15 +263,7 @@ def app_runner(game: BaseApp):
 		services = game.get_services()
 		stats = {}
 		for svc in services:
-			svc_stats = {
-				'service': svc.service,
-				'name': svc.get_name(),
-				'ip': get_wan_ip(),
-				'port': svc.get_port(),
-				'enabled': svc.is_enabled(),
-				'max_players': svc.get_player_max(),
-			}
-			stats[svc.service] = svc_stats
+			stats[svc.service] = svc.get_info()
 		print(json.dumps(stats))
 		sys.exit(0)
 
@@ -354,15 +342,9 @@ def app_runner(game: BaseApp):
 				player_count = len(players)
 
 			svc_stats = {
-				'service': svc.service,
-				'name': svc.get_name(),
-				'ip': get_wan_ip(),
-				'port': svc.get_port(),
 				'status': status,
-				'enabled': svc.is_enabled(),
 				'players': players,
 				'player_count': player_count,
-				'max_players': svc.get_player_max(),
 				'memory_usage': svc.get_memory_usage(),
 				'cpu_usage': svc.get_cpu_usage(),
 				'game_pid': svc.get_game_pid(),
@@ -370,7 +352,7 @@ def app_runner(game: BaseApp):
 				'pre_exec': pre_exec,
 				'start_exec': start_exec,
 			}
-			stats[svc.service] = svc_stats
+			stats[svc.service] = svc.get_info() | svc_stats
 		print(json.dumps(stats))
 		sys.exit(0)
 

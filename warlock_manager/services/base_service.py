@@ -9,6 +9,7 @@ from abc import abstractmethod, ABC
 from SystemdUnitParser import SystemdUnitParser
 
 from warlock_manager.apps.base_app import BaseApp
+from warlock_manager.libs.get_wan_ip import get_wan_ip
 from warlock_manager.libs.tui import prompt_yn, prompt_text
 from warlock_manager.libs.cmd import Cmd, BackgroundCmd
 
@@ -970,6 +971,21 @@ class BaseService(ABC):
 
 		return base
 
+	def get_backup_directory(self) -> str:
+		"""
+		Get the backup directory for this game service, which is the directory that contains backups of the game files
+
+		If the game is registered as a multi-binary game, each service is contained within its own directory,
+		otherwise all instances share Backups.
+
+		:return:
+		"""
+		base = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'Backups')
+		if self.game.multi_binary:
+			base = os.path.join(base, self.service)
+
+		return base
+
 	def get_environment(self) -> dict:
 		"""
 		Get the environment variables for this service as a dictionary
@@ -978,6 +994,24 @@ class BaseService(ABC):
 		"""
 		return {
 			'XDG_RUNTIME_DIR': '/run/user/%s' % self.game.get_app_uid(),
+		}
+
+	def get_info(self) -> dict:
+		"""
+		Get a dictionary of information about this service for display in the TUI
+
+		This is used by Warlock to retrieve information about a given service.
+		:return:
+		"""
+		return {
+			'service': self.service,
+			'name': self.get_name(),
+			'ip': get_wan_ip(),
+			'port': self.get_port(),
+			'enabled': self.is_enabled(),
+			'max_players': self.get_player_max(),
+			'app_dir': self.get_app_directory(),
+			'bak_dir': self.get_backup_directory(),
 		}
 
 	def build_systemd_config(self):
@@ -1088,3 +1122,230 @@ class BaseService(ABC):
 		:return:
 		"""
 		...
+
+	def get_save_files(self) -> list | None:
+		"""
+		Get the list of supplemental files or directories for this game, or None if not applicable
+
+		This list of files **should not** be fully resolved, and will use `self.get_save_directory()` as the base path.
+		For example, to return `AppFiles/SaveData` and `AppFiles/Config`:
+
+		```python
+		return ['SaveData', 'Config']
+		```
+
+		:return:
+		"""
+		return None
+
+	def backup(self, max_backups: int = 0) -> bool:
+		"""
+		Perform a backup of the game configuration and save files
+
+		:param max_backups: Maximum number of backups to keep (0 = unlimited)
+		:return:
+		"""
+		self.prepare_backup()
+		backup_path = self.complete_backup(max_backups)
+		print('Backup saved to %s' % backup_path)
+		return True
+
+	def prepare_backup(self) -> str:
+		"""
+		Prepare a backup directory for this game and return the file path
+
+		:return:
+		"""
+		base = self.game.get_app_directory()
+		temp_store = os.path.join(base, '.save-%s' % self.service)
+		save_source = self.get_app_directory()
+		save_files = self.get_save_files()
+
+		# Temporary directories for various file sources
+		for d in ['config', 'save']:
+			p = os.path.join(temp_store, d)
+			if not os.path.exists(p):
+				os.makedirs(p)
+
+		# Copy the various configuration files used by the game
+		for cfg in self.configs.values():
+			src = cfg.path
+			if src and os.path.exists(src):
+				print('Backing up configuration file: %s' % src)
+				dst = os.path.join(temp_store, 'config', os.path.basename(src))
+				shutil.copy(src, dst)
+
+		# Copy save files if specified
+		if save_source and save_files:
+			for f in save_files:
+				src = os.path.join(save_source, f)
+				dst = os.path.join(temp_store, 'save', f)
+				if os.path.exists(src):
+					if os.path.isfile(src):
+						print('Backing up save file: %s' % src)
+						if not os.path.exists(os.path.dirname(dst)):
+							os.makedirs(os.path.dirname(dst))
+						shutil.copy(src, dst)
+					else:
+						print('Backing up save directory: %s' % src)
+						if not os.path.exists(dst):
+							os.makedirs(dst)
+						shutil.copytree(src, dst, dirs_exist_ok=True)
+				else:
+					print('Save file %s does not exist, skipping...' % src, file=sys.stderr)
+
+		# Save the environment file for this service, if one is set
+		if self._env_file:
+			src = self._env_file
+			if os.path.exists(src):
+				print('Backing up environment file: %s' % src)
+				dst = os.path.join(temp_store, 'environment')
+				shutil.copy(src, dst)
+
+		return temp_store
+
+	def complete_backup(self, max_backups: int = 0) -> str:
+		"""
+		Complete the backup process by creating the final archive and cleaning up temporary files
+
+		:return:
+		"""
+		base = self.game.get_app_directory()
+		temp_store = os.path.join(base, '.save-%s' % self.service)
+		target_dir = self.get_backup_directory()
+		base_name = self.service
+		# Ensure no invalid characters in the name
+		replacements = {
+			'/': '_',
+			'\\': '_',
+			':': '',
+			'*': '',
+			'?': '',
+			'"': '',
+			"'": '',
+			' ': '_'
+		}
+		for old, new in replacements.items():
+			base_name = base_name.replace(old, new)
+
+		# Ensure the target directory exists; this will store the finalized backups
+		if not os.path.exists(target_dir):
+			os.makedirs(target_dir)
+			self.game.ensure_file_ownership(target_dir)
+
+		# Create the final archive
+		timestamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+		backup_name = '%s-backup-%s.tar.gz' % (base_name, timestamp)
+		backup_path = os.path.join(target_dir, backup_name)
+		print('Creating backup archive: %s' % backup_path)
+		shutil.make_archive(backup_path[:-7], 'gztar', temp_store)
+
+		# Ensure consistent ownership
+		self.game.ensure_file_ownership(backup_path)
+
+		# Cleanup
+		shutil.rmtree(temp_store)
+
+		# Remove old backups if necessary
+		if max_backups > 0:
+			backups = []
+			for f in os.listdir(target_dir):
+				if f.startswith('%s-backup-' % base_name) and f.endswith('.tar.gz'):
+					full_path = os.path.join(target_dir, f)
+					backups.append((full_path, os.path.getmtime(full_path)))
+			backups.sort(key=lambda x: x[1])  # Sort by modification time
+			while len(backups) > max_backups:
+				old_backup = backups.pop(0)
+				os.remove(old_backup[0])
+				print('Removed old backup: %s' % old_backup[0])
+
+		return backup_path
+
+	def restore(self, path: str) -> bool:
+		"""
+		Restore a backup from the given filename
+
+		:param path:
+		:return:
+		"""
+		temp_store = self.prepare_restore(path)
+		if temp_store is False:
+			return False
+		self.complete_restore()
+		return True
+
+	def prepare_restore(self, filename) -> str | bool:
+		"""
+		Prepare to restore a backup by extracting it to a temporary location
+
+		:param filename:
+		:return:
+		"""
+		if not os.path.exists(filename):
+			# Check if the file exists in the designated Backups directory for this service
+			backup_path = os.path.join(self.get_backup_directory(), filename)
+			if os.path.exists(backup_path):
+				filename = backup_path
+			else:
+				print('Backup file %s does not exist, cannot continue!' % filename, file=sys.stderr)
+				return False
+
+		if self.is_running():
+			print('Game server is currently running, please stop it before restoring a backup!', file=sys.stderr)
+			return False
+
+		base = self.game.get_app_directory()
+		temp_store = os.path.join(base, '.restore-%s' % self.service)
+		save_dest = self.get_app_directory()
+
+		os.makedirs(temp_store, exist_ok=True)
+
+		# Extract the archive to the temporary location
+		print('Extracting backup archive: %s' % filename)
+		shutil.unpack_archive(filename, temp_store)
+
+		# Copy the various configuration files used by the game
+		for cfg in self.configs.values():
+			dst = cfg.path
+			if dst:
+				src = os.path.join(temp_store, 'config', os.path.basename(dst))
+				if os.path.exists(src):
+					print('Restoring configuration file: %s' % dst)
+					shutil.copy(src, dst)
+					self.game.ensure_file_ownership(dst)
+
+		# If the save destination is specified, perform those files/directories too.
+		if save_dest:
+			save_src = os.path.join(temp_store, 'save')
+			if os.path.exists(save_src):
+				for item in os.listdir(save_src):
+					src = os.path.join(save_src, item)
+					dst = os.path.join(save_dest, item)
+					print('Restoring save file: %s' % dst)
+					if os.path.isfile(src):
+						shutil.copy(src, dst)
+					else:
+						shutil.copytree(src, dst, dirs_exist_ok=True)
+					self.game.ensure_file_ownership(dst)
+
+		# Restore the environment file for this service, if one is set
+		if self._env_file:
+			dst = self._env_file
+			save_src = os.path.join(temp_store, 'environment')
+			if os.path.exists(save_src):
+				print('Restoring environment file: %s' % dst)
+				shutil.copy(save_src, dst)
+
+		return temp_store
+
+	def complete_restore(self):
+		"""
+		Complete the restore process by cleaning up temporary files
+
+		:return:
+		"""
+		base = self.game.get_app_directory()
+		temp_store = os.path.join(base, '.restore-%s' % self.service)
+
+		# Cleanup
+		shutil.rmtree(temp_store)
