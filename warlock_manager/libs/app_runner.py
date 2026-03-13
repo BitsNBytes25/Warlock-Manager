@@ -200,31 +200,40 @@ def app_runner(game: BaseApp):
 		sys.exit(0 if service.restore(str(restore_path)) else 1)
 
 	@app.command()
-	def check_update():
+	def check_update(service: arg_service_optional = None):
 		"""
 		Check if an update is available for the game
 
 		:return:
 		"""
-		sys.exit(0 if game.check_update_available() else 1)
+		if service:
+			sys.exit(0 if service.check_update_available() else 1)
+		else:
+			sys.exit(0 if game.check_update_available() else 1)
 
 	@app.command()
-	def update():
+	def update(service: arg_service_optional = None):
 		"""
 		Update the game to the latest version if an update is available
 
 		:return:
 		"""
-		sys.exit(0 if game.update() else 1)
+		if service:
+			sys.exit(0 if service.update() else 1)
+		else:
+			sys.exit(0 if game.update() else 1)
 
 	@app.command()
-	def delayed_update():
+	def delayed_update(service: arg_service_optional = None):
 		"""
 		Issue a delayed update, providing 1 hour for players to disconnect before updating
 
 		:return:
 		"""
-		game.delayed_update()
+		if service:
+			service.delayed_update()
+		else:
+			game.delayed_update()
 		sys.exit(0)
 
 	@app.command()
@@ -277,7 +286,7 @@ def app_runner(game: BaseApp):
 		"""
 		try:
 			new_service = game.create_service(service)
-			print(new_service.service)
+			print('CreatedService:' + new_service.service)
 			sys.exit(0)
 		except Exception as e:
 			print('Error creating service instance: %s' % str(e), file=sys.stderr)
@@ -322,17 +331,6 @@ def app_runner(game: BaseApp):
 			else:
 				status = 'stopped'
 
-			pre_exec = svc.get_exec_start_pre_status()
-			start_exec = svc.get_exec_start_status()
-			if pre_exec and pre_exec['start_time']:
-				pre_exec['start_time'] = int(pre_exec['start_time'].timestamp())
-			if pre_exec and pre_exec['stop_time']:
-				pre_exec['stop_time'] = int(pre_exec['stop_time'].timestamp())
-			if start_exec and start_exec['start_time']:
-				start_exec['start_time'] = int(start_exec['start_time'].timestamp())
-			if start_exec and start_exec['stop_time']:
-				start_exec['stop_time'] = int(start_exec['stop_time'].timestamp())
-
 			players = svc.get_players()
 			# Some games may not support getting a full player list
 			if players is None:
@@ -349,8 +347,6 @@ def app_runner(game: BaseApp):
 				'cpu_usage': svc.get_cpu_usage(),
 				'game_pid': svc.get_game_pid(),
 				'service_pid': svc.get_pid(),
-				'pre_exec': pre_exec,
-				'start_exec': start_exec,
 			}
 			stats[svc.service] = svc.get_info() | svc_stats
 		print(json.dumps(stats))

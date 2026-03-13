@@ -821,7 +821,7 @@ class BaseService(ABC):
 		:return:
 		"""
 
-		if action not in ['stop', 'restart']:
+		if action not in ['stop', 'restart', 'update']:
 			print('ERROR - Invalid action for delayed action: %s' % action, file=sys.stderr)
 			return
 
@@ -864,6 +864,21 @@ class BaseService(ABC):
 
 		if action == 'stop':
 			self.stop()
+		elif action == 'update':
+			is_running = self.is_running()
+			if is_running:
+				self.stop()
+			# Stop may take 5 more minutes to complete.
+			counter = 0
+			while counter <= 10:
+				if not self.is_running():
+					break
+				counter += 1
+				time.sleep(30)
+			self.update()
+			# Should it start back up?
+			if is_running:
+				self.start()
 		else:
 			self.restart()
 
@@ -920,6 +935,47 @@ class BaseService(ABC):
 			return
 
 		Cmd(['systemctl', 'daemon-reload']).run()
+
+	def check_update_available(self) -> bool:
+		"""
+		Check if there's an update available for this game
+
+		:return:
+		"""
+		return False
+
+	def update(self) -> bool:
+		"""
+		Update the game server
+
+		:return:
+		"""
+		return False
+
+	def delayed_update(self):
+		"""
+		Perform a delayed update of the game, giving players time to log off safely before restarting the server.
+
+		Provides a 1-hour warning with 5-minute notifications, then updates the game and restarts all services.
+		This is intended to be used when performing maintenance or updates that require downtime,
+		but you want to give players a chance to log off safely before the server goes down.
+
+		:return:
+		"""
+		if not self.game.multi_binary:
+			print('ERROR - This game does not support updating instances separately.', file=sys.stderr)
+		else:
+			self._delayed_action('update')
+
+	def post_update(self):
+		"""
+		Perform any post-update actions needed for this game
+
+		Called immediately after an update is performed but before services are restarted.
+
+		:return:
+		"""
+		pass
 
 	def cmd(self, cmd: str) -> None | str:
 		"""
@@ -1004,12 +1060,14 @@ class BaseService(ABC):
 		:return:
 		"""
 		return {
+			# Service-related fields
 			'service': self.service,
 			'name': self.get_name(),
 			'ip': get_wan_ip(),
 			'port': self.get_port(),
 			'enabled': self.is_enabled(),
 			'max_players': self.get_player_max(),
+			# API-related fields
 			'app_dir': self.get_app_directory(),
 			'bak_dir': self.get_backup_directory(),
 		}

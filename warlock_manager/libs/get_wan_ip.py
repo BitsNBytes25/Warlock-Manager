@@ -9,11 +9,11 @@ def get_wan_ip() -> Union[str, None]:
 	:return: str: The external IP address as a string, or None if it cannot be determined
 	"""
 	try:
-		with request.urlopen('https://api.ipify.org', timeout=2) as resp:
+		with request.urlopen('http://wan.eval.bz', timeout=2) as resp:
 			return resp.read().decode('utf-8')
-	except (urllib_error.HTTPError, urllib_error.URLError):
+	except (urllib_error.HTTPError, urllib_error.URLError, TimeoutError):
 		try:
-			with request.urlopen('http://wan.eval.bz', timeout=2) as resp:
+			with request.urlopen('https://api.ipify.org', timeout=2) as resp:
 				return resp.read().decode('utf-8')
-		except (urllib_error.HTTPError, urllib_error.URLError):
+		except (urllib_error.HTTPError, urllib_error.URLError, TimeoutError):
 			return None

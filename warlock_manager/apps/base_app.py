@@ -31,7 +31,7 @@ class BaseApp(ABC):
 		Description / full name of this game
 		"""
 
-		self.services = []
+		self.services = self.detect_services()
 		"""
 		:type list<str>:
 		List of available services (instances) for this game
