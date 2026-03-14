@@ -1,10 +1,28 @@
 import json
 import logging
+import inspect
 import sys
 import typer
 from typing import Annotated
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.services.base_service import BaseService
+from warlock_manager.libs.sensitive_data_filter import sensitive_data_filter
+
+
+class ClassNameFilter(logging.Filter):
+	def filter(self, record):
+		# Try to get the class name from the call stack
+		frame = inspect.currentframe()
+		while frame:
+			if 'self' in frame.f_locals:
+				class_name = frame.f_locals['self'].__class__.__name__
+				if class_name not in ['ClassNameFilter', 'RootLogger']:
+					record.classname = frame.f_locals['self'].__class__.__name__
+					break
+			frame = frame.f_back
+		else:
+			record.classname = ''
+		return True
 
 
 def app_runner(game: BaseApp):
@@ -75,8 +93,16 @@ def app_runner(game: BaseApp):
 	def main(
 		debug: arg_debug = False
 	):
+		log_level = logging.DEBUG if debug else logging.INFO
+		logging.basicConfig(
+			level=log_level,
+			format='%(asctime)s [%(levelname)s] %(classname)s.%(funcName)s: %(message)s',
+			force=True
+		)
+		logging.getLogger().addFilter(ClassNameFilter())
+		logging.getLogger().addFilter(sensitive_data_filter)
+
 		if debug:
-			logging.basicConfig(level=logging.DEBUG, force=True)
 			logging.debug('Debug logging enabled')
 
 	@app.command()

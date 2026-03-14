@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import sys
 import time
@@ -618,6 +619,7 @@ class BaseApp(ABC):
 			uid = self.get_app_uid()
 			gid = self.get_app_gid()
 
+			logging.debug('Ensuring ownership of %s to %s:%s' % (file, uid, gid))
 			os.chown(file, uid, gid)
 			if os.path.isdir(file):
 				for root, dirs, files in os.walk(file):

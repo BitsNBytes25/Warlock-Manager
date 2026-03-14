@@ -201,9 +201,10 @@ class BaseService(ABC):
 
 				# Allow the extending service to handle any special actions needed for this option update
 				self.option_value_updated(option, previous_value, value)
+				logging.info('Updated option %s to %s' % (option, value))
 				return
 
-		print('Invalid option: %s, not present in service configuration!' % option, file=sys.stderr)
+		logging.warning('Invalid option: %s, not present in service configuration!' % option)
 
 	def option_has_value(self, option: str) -> bool:
 		"""
