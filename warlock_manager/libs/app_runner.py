@@ -206,14 +206,24 @@ def app_runner(game: BaseApp):
 			sys.exit(0)
 
 	@app.command()
-	def backup(service: arg_service_required, max_backups: arg_max_backups = 0):
+	def backup(service: arg_service_optional, max_backups: arg_max_backups = 0):
 		"""
 		Create a backup of the game, keeping a maximum number of backups if specified
 
 		:param max_backups:
 		:return:
 		"""
-		sys.exit(0 if service.backup(max_backups) else 1)
+		if service and isinstance(service, BaseService):
+			sys.exit(0 if service.backup(max_backups) else 1)
+		else:
+			if len(game.get_services()) == 0:
+				logging.warning('No services are available for backup, nothing to do.')
+				sys.exit(1)
+			success = True
+			for svc in game.get_services():
+				if not svc.backup(max_backups):
+					success = False
+			sys.exit(0 if success else 1)
 
 	@app.command()
 	def restore(service: arg_service_required, restore_path: arg_restore):
