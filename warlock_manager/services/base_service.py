@@ -1156,6 +1156,11 @@ class BaseService(ABC):
 		Remove the systemd service for this game, including the service file and environment file
 		:return:
 		"""
+
+		# Stop / disable this service in systemd
+		self.stop()
+		self.disable()
+
 		if os.path.exists(self._service_file):
 			os.remove(self._service_file)
 			logging.info('Removed systemd service file for %s at %s' % (self.service, self._service_file))

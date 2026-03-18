@@ -116,7 +116,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.get_value(option)
 
-		print('Invalid option: %s, not present in game configuration!' % option, file=sys.stderr)
+		logging.warning('Invalid option: %s, not present in game configuration!' % option)
 		return ''
 
 	def get_option_default(self, option: str) -> str:
@@ -129,7 +129,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.get_default(option)
 
-		print('Invalid option: %s, not present in game configuration!' % option, file=sys.stderr)
+		logging.warning('Invalid option: %s, not present in game configuration!' % option)
 		return ''
 
 	def get_option_type(self, option: str) -> str:
@@ -142,7 +142,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.get_type(option)
 
-		print('Invalid option: %s, not present in game configuration!' % option, file=sys.stderr)
+		logging.warning('Invalid option: %s, not present in game configuration!' % option)
 		return ''
 
 	def get_option_help(self, option: str) -> str:
@@ -155,7 +155,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.options[option].help
 
-		print('Invalid option: %s, not present in game configuration!' % option, file=sys.stderr)
+		logging.warning('Invalid option: %s, not present in game configuration!' % option)
 		return ''
 
 	def option_value_updated(self, option: str, previous_value, new_value):
@@ -188,7 +188,7 @@ class BaseApp(ABC):
 				self.option_value_updated(option, previous_value, value)
 				return
 
-		print('Invalid option: %s, not present in game configuration!' % option, file=sys.stderr)
+		logging.warning('Invalid option: %s, not present in game configuration!' % option)
 
 	def get_option_options(self, option: str):
 		"""
@@ -200,7 +200,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.get_options(option)
 
-		print('Invalid option: %s, not present in service configuration!' % option, file=sys.stderr)
+		logging.warning('Invalid option: %s, not present in game configuration!' % option)
 		return []
 
 	def get_option_group(self, option: str):
@@ -213,7 +213,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.options[option].group
 
-		print('Invalid option: %s, not present in service configuration!' % option, file=sys.stderr)
+		logging.warning('Invalid option: %s, not present in game configuration!' % option)
 		return 'Options'
 
 	def prompt_option(self, option: str):
@@ -326,11 +326,11 @@ class BaseApp(ABC):
 		"""
 
 		if action not in ['stop', 'restart', 'update']:
-			print('ERROR - Invalid action for delayed action: %s' % action, file=sys.stderr)
+			logging.error('Invalid action for delayed action: %s' % action)
 			return
 
 		if os.geteuid() != 0:
-			print('ERROR - Unable to %s game service unless run with sudo' % action, file=sys.stderr)
+			logging.error('Unable to %s game service unless run with sudo' % action)
 			return
 
 		msg = self.get_option_value('%s_delayed' % action)
@@ -341,7 +341,10 @@ class BaseApp(ABC):
 		services_running = []
 		services = self.get_services()
 
-		print('Issuing %s for all services, please wait as this will give players up to an hour to log off safely.' % action)
+		logging.info(
+			'Starting delayed %s action for all services, this gives current players up to an hour to log off safely' %
+			action
+		)
 
 		while True:
 			still_running = False
@@ -360,7 +363,7 @@ class BaseApp(ABC):
 
 					if player_count == 0 or player_count is None:
 						# No players online, stop the service
-						print('No players detected on %s, stopping service now.' % service.service)
+						logging.info('Stopping %s as no players are online.' % service.service)
 						service.stop()
 					else:
 						# Still online, check to see if we should send a message
@@ -374,7 +377,7 @@ class BaseApp(ABC):
 							service.send_message(player_msg)
 
 			if minutes_left % 5 == 0 and minutes_left > 5:
-				print('%s minutes remaining before %s.' % (str(minutes_left), action))
+				logging.info('%s minutes remaining before %s.' % (str(minutes_left), action))
 
 			if not still_running or minutes_left <= 0:
 				# No services are running, stop the timer
@@ -390,7 +393,7 @@ class BaseApp(ABC):
 			# Now that all services have been stopped, restart any that were running before
 			for service in services:
 				if service.service in services_running:
-					print('Starting %s' % service.service)
+					logging.info('Starting %s' % service.service)
 					service.start()
 
 	def get_services(self) -> list['BaseService']:
@@ -425,6 +428,10 @@ class BaseApp(ABC):
 
 		:return:
 		"""
+		if self.multi_binary:
+			for svc in self.get_services():
+				if svc.check_update_available():
+					return True
 		return False
 
 	def update(self) -> bool:
@@ -433,6 +440,9 @@ class BaseApp(ABC):
 
 		:return:
 		"""
+		if self.multi_binary:
+			for svc in self.get_services():
+				svc.update()
 		return False
 
 	def post_update(self):
