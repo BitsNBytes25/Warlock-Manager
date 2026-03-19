@@ -1082,18 +1082,16 @@ class BaseService(ABC):
 		# NOTICE, this will only check against services within this same game,
 		# so multiple games on the same server may need adjusted manually.
 		port_configs = self.get_port_definitions()
-		services = self.game.get_services()
 		for port_config in port_configs:
 			if isinstance(port_config[0], int):
 				# This is a static port, skip it
 				continue
 
-			max_port = int(self.get_option_value(port_config[0])) - 1
-			for svc in services:
-				max_port = max(max_port, svc.get_option_value(port_config[0]) or 0)
+			port = self.get_option_value(port_config[0])
+			new_port = self.game.get_next_available_port(self, port, port_config[1])
 
-			self.set_option(port_config[0], max_port + 1)
-			logging.info('Set %s to %s' % (port_config[0], max_port + 1))
+			self.set_option(port_config[0], new_port)
+			logging.info('Set %s to %s to try to avoid conflicts' % (port_config[0], new_port))
 
 		# Reload systemd to pick up the new service
 		self.reload()

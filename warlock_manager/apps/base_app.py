@@ -475,6 +475,44 @@ class BaseApp(ABC):
 		"""
 		pass
 
+	def get_next_available_port(self, service, port: int, protocol: str) -> int:
+		"""
+		Search through all ports used by all services under this game and find the next available one.
+
+		:param service: The service instance that started the lookup, (its ports will be checked too)
+		:param port:
+		:param protocol:
+		:return:
+		"""
+		if len(self.get_services()) == 0:
+			# If there are no services here, just return the original port.
+			return port
+
+		protocol = protocol.lower()
+
+		used_ports = set()
+		candidate_services = [service] + self.get_services()
+		for svc in candidate_services:
+			port_defs = svc.get_port_definitions()
+			for port_def in port_defs:
+				if port_def[1].lower() == protocol:
+					if isinstance(port_def[0], int):
+						port_val = port_def[0]
+					else:
+						port_val = svc.get_option_value(port_def[0])
+
+					if svc == service and port_val == port:
+						# This is the original port we're trying to find a replacement for, so skip it in the used ports list
+						continue
+
+					used_ports.add(port_val)
+
+		# Find the next available port
+		candidate = port
+		while candidate in used_ports:
+			candidate += 1
+		return candidate
+
 	def send_discord_message(self, message: str):
 		"""
 		Send a message to the configured Discord webhook
