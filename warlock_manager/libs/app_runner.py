@@ -194,9 +194,6 @@ def app_runner(game: BaseApp):
 	def get_commands(service: arg_service_required):
 		"""
 		Get a list of available commands for the service API in JSON format
-
-		:param service:
-		:return:
 		"""
 		cmds = service.get_commands()
 		if cmds is None:
@@ -206,12 +203,9 @@ def app_runner(game: BaseApp):
 			sys.exit(0)
 
 	@app.command()
-	def backup(service: arg_service_optional, max_backups: arg_max_backups = 0):
+	def backup(service: arg_service_optional = None, max_backups: arg_max_backups = 0):
 		"""
 		Create a backup of the game, keeping a maximum number of backups if specified
-
-		:param max_backups:
-		:return:
 		"""
 		if service and isinstance(service, BaseService):
 			sys.exit(0 if service.backup(max_backups) else 1)
