@@ -1,3 +1,5 @@
+import logging
+
 import requests
 import hashlib
 import time
@@ -18,6 +20,12 @@ def download_file(game: 'BaseApp', url: str, destination: str):
     :param destination: The local file path to save the downloaded file to
     :return:
     """
+    logging.debug('Downloading file %s to %s' % (url, destination))
+    # Ensure the target directory exists
+    if not os.path.exists(os.path.dirname(destination)):
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+        game.ensure_file_ownership(os.path.dirname(destination))
+
     response = requests.get(url, stream=True)
     response.raise_for_status()  # Check if the request was successful
 
@@ -50,7 +58,12 @@ def download_json(game: 'BaseApp', url: str) -> dict:
     url_hash = hashlib.sha256(url.encode()).hexdigest()
     cache_path = os.path.join(game.get_app_directory(), '.cache', url_hash)
     if os.path.exists(cache_path):
-        if time.time() - os.path.getmtime(cache_path) < 3600:
+        # For large files, extend the cache further
+        if os.path.getsize(cache_path) > 10000000:
+            cache_duration = 24 * 3600  # 24 hours for large files
+        else:
+            cache_duration = 3600  # 1 hour for smaller files
+        if time.time() - os.path.getmtime(cache_path) < cache_duration:
             with open(cache_path, "r") as f:
                 return json.load(f)
 
