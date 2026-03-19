@@ -28,6 +28,8 @@ class ClassNameFilter(logging.Filter):
 def app_runner(game: BaseApp):
 	app = typer.Typer()
 
+	features = game.features - game.disabled_features
+
 	def resolve_service(ctx: typer.Context, value: str | None) -> None | BaseService:
 		"""
 		Resolve the service directive to an actual service instance, or return None if no service was specified
@@ -132,19 +134,20 @@ def app_runner(game: BaseApp):
 			game.restart_all()
 		sys.exit(0)
 
-	@app.command()
-	def delayed_restart(service: arg_service_optional = None):
-		"""
-		Issue a delayed restart, providing 1 hour for players to disconnect before restarting
+	if 'api' in features:
+		@app.command()
+		def delayed_restart(service: arg_service_optional = None):
+			"""
+			Issue a delayed restart, providing 1 hour for players to disconnect before restarting
 
-		:param service:
-		:return:
-		"""
-		if service and isinstance(service, BaseService):
-			service.delayed_restart()
-		else:
-			game.delayed_restart_all()
-		sys.exit(0)
+			:param service:
+			:return:
+			"""
+			if service and isinstance(service, BaseService):
+				service.delayed_restart()
+			else:
+				game.delayed_restart_all()
+			sys.exit(0)
 
 	@app.command()
 	def stop(service: arg_service_optional = None):
@@ -160,47 +163,50 @@ def app_runner(game: BaseApp):
 			game.stop_all()
 		sys.exit(0)
 
-	@app.command()
-	def delayed_stop(service: arg_service_optional = None):
-		"""
-		Issue a delayed stop, providing 1 hour for players to disconnect
+	if 'api' in features:
+		@app.command()
+		def delayed_stop(service: arg_service_optional = None):
+			"""
+			Issue a delayed stop, providing 1 hour for players to disconnect
 
-		:param service:
-		:return:
-		"""
-		if service and isinstance(service, BaseService):
-			service.delayed_stop()
-		else:
-			game.delayed_stop_all()
-		sys.exit(0)
-
-	@app.command()
-	def cmd(service: arg_service_required, command: str):
-		"""
-		Send a command to the game server via the service API
-
-		:param service:
-		:param command:
-		:return:
-		"""
-		result = service.cmd(command)
-		if result is not None:
-			print(result)
+			:param service:
+			:return:
+			"""
+			if service and isinstance(service, BaseService):
+				service.delayed_stop()
+			else:
+				game.delayed_stop_all()
 			sys.exit(0)
-		else:
-			sys.exit(1)
 
-	@app.command()
-	def get_commands(service: arg_service_required):
-		"""
-		Get a list of available commands for the service API in JSON format
-		"""
-		cmds = service.get_commands()
-		if cmds is None:
-			sys.exit(1)
-		else:
-			print(json.dumps(cmds))
-			sys.exit(0)
+	if 'api' in features and 'cmd' in features:
+		@app.command()
+		def cmd(service: arg_service_required, command: str):
+			"""
+			Send a command to the game server via the service API
+
+			:param service:
+			:param command:
+			:return:
+			"""
+			result = service.cmd(command)
+			if result is not None:
+				print(result)
+				sys.exit(0)
+			else:
+				sys.exit(1)
+
+	if 'api' in features and 'cmd' in features:
+		@app.command()
+		def get_commands(service: arg_service_required):
+			"""
+			Get a list of available commands for the service API in JSON format
+			"""
+			cmds = service.get_commands()
+			if cmds is None:
+				sys.exit(1)
+			else:
+				print(json.dumps(cmds))
+				sys.exit(0)
 
 	@app.command()
 	def backup(service: arg_service_optional = None, max_backups: arg_max_backups = 0):
@@ -253,18 +259,19 @@ def app_runner(game: BaseApp):
 		else:
 			sys.exit(0 if game.update() else 1)
 
-	@app.command()
-	def delayed_update(service: arg_service_optional = None):
-		"""
-		Issue a delayed update, providing 1 hour for players to disconnect before updating
+	if 'api' in features:
+		@app.command()
+		def delayed_update(service: arg_service_optional = None):
+			"""
+			Issue a delayed update, providing 1 hour for players to disconnect before updating
 
-		:return:
-		"""
-		if service:
-			service.delayed_update()
-		else:
-			game.delayed_update()
-		sys.exit(0)
+			:return:
+			"""
+			if service:
+				service.delayed_update()
+			else:
+				game.delayed_update()
+			sys.exit(0)
 
 	@app.command()
 	def pre_stop(service: arg_service_required):
@@ -306,36 +313,38 @@ def app_runner(game: BaseApp):
 		print(json.dumps(stats))
 		sys.exit(0)
 
-	@app.command()
-	def create_service(service: arg_service_name_required):
-		"""
-		Create a new service instance for the game with the specified name
+	if 'create_service' in features:
+		@app.command()
+		def create_service(service: arg_service_name_required):
+			"""
+			Create a new service instance for the game with the specified name
 
-		:param service:
-		:return:
-		"""
-		try:
-			new_service = game.create_service(service)
-			print('CreatedService:' + new_service.service)
-			sys.exit(0)
-		except Exception as e:
-			print('Error creating service instance: %s' % str(e), file=sys.stderr)
-			sys.exit(1)
+			:param service:
+			:return:
+			"""
+			try:
+				new_service = game.create_service(service)
+				print('CreatedService:' + new_service.service)
+				sys.exit(0)
+			except Exception as e:
+				print('Error creating service instance: %s' % str(e), file=sys.stderr)
+				sys.exit(1)
 
-	@app.command()
-	def remove_service(service: arg_service_name_required):
-		"""
-		Remove a service instance for the game with the specified name
+	if 'create_service' in features:
+		@app.command()
+		def remove_service(service: arg_service_name_required):
+			"""
+			Remove a service instance for the game with the specified name
 
-		:param service:
-		:return:
-		"""
-		try:
-			game.remove_service(service)
-			sys.exit(0)
-		except Exception as e:
-			print('Error removing service instance: %s' % str(e), file=sys.stderr)
-			sys.exit(1)
+			:param service:
+			:return:
+			"""
+			try:
+				game.remove_service(service)
+				sys.exit(0)
+			except Exception as e:
+				print('Error removing service instance: %s' % str(e), file=sys.stderr)
+				sys.exit(1)
 
 	@app.command()
 	def get_metrics(service: arg_service_optional = None):
@@ -466,31 +475,32 @@ def app_runner(game: BaseApp):
 		"""
 		sys.exit(0 if game.first_run() else 1)
 
-	@app.command()
-	def has_players(service: arg_service_optional = None):
-		"""
-		Check if there are players currently connected, exits 0 if there are players, 1 if there are not.
+	if 'api' in features:
+		@app.command()
+		def has_players(service: arg_service_optional = None):
+			"""
+			Check if there are players currently connected, exits 0 if there are players, 1 if there are not.
 
-		:param service:
-		:return:
-		"""
-		if service and isinstance(service, BaseService):
-			services: list[BaseService] = [service]
-		else:
-			services: list[BaseService] = game.get_services()
-
-		players = False
-		for svc in services:
-			c = svc.get_player_count()
-			if c is None:
-				print('%s cannot determine player count' % svc.get_name())
-			elif c == 0:
-				print('%s has no players connected' % svc.get_name())
+			:param service:
+			:return:
+			"""
+			if service and isinstance(service, BaseService):
+				services: list[BaseService] = [service]
 			else:
-				print('%s has %d player(s) connected' % (svc.get_name(), c))
-				players = True
+				services: list[BaseService] = game.get_services()
 
-		sys.exit(0 if players else 1)
+			players = False
+			for svc in services:
+				c = svc.get_player_count()
+				if c is None:
+					print('%s cannot determine player count' % svc.get_name())
+				elif c == 0:
+					print('%s has no players connected' % svc.get_name())
+				else:
+					print('%s has %d player(s) connected' % (svc.get_name(), c))
+					players = True
+
+			sys.exit(0 if players else 1)
 
 	@app.command()
 	def is_running(service: arg_service_optional = None):

@@ -74,6 +74,26 @@ class BaseApp(ABC):
 		Set to True if this game has separate binaries for each service
 		"""
 
+		self.features = {
+			'api',  # Game supports baseline API features
+			'cmd',  # Game supports commands sent via the API
+			'create_service',  # Game supports creating new services
+		}
+		"""
+		List of features available in this game
+		"""
+
+		self.disabled_features = {''}
+		"""
+		List of disabled features for this game
+
+		Available features that can be disabled:
+
+		* api
+		* cmd
+		* create_service
+		"""
+
 	def load(self):
 		"""
 		Load the configuration files
