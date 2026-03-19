@@ -698,3 +698,31 @@ class BaseApp(ABC):
 						os.chown(os.path.join(root, momo), uid, gid)
 					for momo in files:
 						os.chown(os.path.join(root, momo), uid, gid)
+
+	def ensure_file_parent_exists(self, file: str):
+		"""
+		A replacement of os.makedirs, but also sets permissions as it creates the directories.
+
+		:param file:
+		:return:
+		"""
+		target_dir = os.path.dirname(file)
+		if os.path.exists(target_dir):
+			# Parent directory exists, nothing to do
+			return
+
+		# Iterate up until the parent directory exists.
+		# This will determine where we need to send file_ownership to.
+		# This is done so we don't have to chown the entire game directory.
+		test_dir = target_dir
+		# Last child will be the last directory that did not exist; we'll issue the chown there.
+		last_child = target_dir
+		while test_dir != '/' and test_dir != '':
+			test_dir = os.path.dirname(test_dir)
+			if not os.path.exists(test_dir):
+				last_child = test_dir
+			else:
+				break
+
+		os.makedirs(target_dir, exist_ok=True)
+		self.ensure_file_ownership(last_child)
