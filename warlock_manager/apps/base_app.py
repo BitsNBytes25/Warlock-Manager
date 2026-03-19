@@ -506,6 +506,9 @@ class BaseApp(ABC):
 		if not self.service_handler:
 			raise Exception('No service defined for this game - please ensure to set `self.service_handler`')
 
+		if self.service_prefix == '':
+			raise Exception('Service prefix cannot be empty!')
+
 		# Simple validation of service name; should only contain lowercase letters and dashes.
 		if not service_name.islower() or not all(c.isalnum() or c == '-' for c in service_name):
 			raise Exception(
