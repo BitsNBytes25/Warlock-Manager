@@ -4,6 +4,7 @@ from typing import Union
 
 from warlock_manager.config.base_config import BaseConfig
 from warlock_manager.config.config_key import config_types
+from warlock_manager.formatters.cli_formatter import cli_formatter
 
 
 class CLIConfig(BaseConfig):
@@ -250,50 +251,12 @@ class CLIConfig(BaseConfig):
 				f.write('\n'.join(new_contents) + '\n')
 
 	def __str__(self) -> str:
-		opts = []
-		flags = []
-
-		for name in self.options.keys():
-			if name not in self.values:
-				# Skip any options not set
-				continue
-
-			opt = self.options[name]
-			val = self.values[name]
-			key = opt.key
-			section = opt.section
-
-			if opt.val_type == 'bool':
-				if val:
-					if section == 'flag':
-						flags.append('-%s' % key)
-					else:
-						opts.append('%s=True' % key)
-				elif section == 'option':
-					# Only include false options if they are options, not flags, since flags are just present or not.
-					# This fixes issues where a base config may set Key=True, but the user wants this instances to be Key=False.
-					opts.append('%s=False' % key)
-			elif opt.val_type == 'int' or opt.val_type == 'float':
-				if section == 'flag':
-					flags.append('-%s%s%s' % (key, self.flag_sep, str(val)))
-				else:
-					opts.append('%s=%s' % (key, str(val)))
-			else:
-				if '"' in val:
-					val = "'%s'" % val
-				elif "'" in val or ' ' in val or '?' in val or '=' in val or '-' in val:
-					val = '"%s"' % val
-
-				if val != '':
-					# Only append keys that have values.
-					if section == 'flag':
-						flags.append('-%s%s%s' % (key, self.flag_sep, val))
-					else:
-						opts.append('%s=%s' % (key, val))
+		opts = cli_formatter(self, 'option', prefix='?', true_value='True', false_value='False', sep='=', joiner='')
+		flags = cli_formatter(self, 'flag', prefix='-', true_value=True, false_value=False, sep=self.flag_sep)
 
 		ret = []
-		if len(opts) > 0:
-			ret.append('?' + '?'.join(opts))
-		if len(flags) > 0:
-			ret.append(' '.join(flags))
+		if opts != '':
+			ret.append(opts)
+		if flags != '':
+			ret.append(flags)
 		return ' '.join(ret)
