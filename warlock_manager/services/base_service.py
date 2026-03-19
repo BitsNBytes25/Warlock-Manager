@@ -649,86 +649,19 @@ class BaseService(ABC):
 		:return:
 		"""
 		if self.is_running():
-			print('Game is currently running!', file=sys.stderr)
+			logging.warning('Game is already running!')
 			return
 
 		if self.is_starting():
-			print('Game is currently starting!', file=sys.stderr)
+			logging.warning('Game is currently starting!')
 			return
 
 		if os.geteuid() != 0:
-			print('ERROR - Unable to stop game service unless run with sudo', file=sys.stderr)
+			logging.error('Unable to start game service unless run with sudo')
+			return
 
-		try:
-			print('Starting game via systemd, please wait a minute...')
-			start_timer = time.time()
-			BackgroundCmd(['systemctl', 'start', self.service]).run()
-			time.sleep(10)
-
-			ready = False
-			seconds_elapsed = round(time.time() - start_timer)
-			max_wait = 300
-			max_wait_minutes = str(max_wait // 60)
-			max_wait_seconds = max_wait % 60
-			if max_wait_seconds < 10:
-				max_wait_seconds = '0' + str(max_wait_seconds)
-			else:
-				max_wait_seconds = str(max_wait_seconds)
-			print('loading...')
-			while seconds_elapsed < max_wait:
-				pid = self.get_pid()
-				exec_status = self.get_process_status()
-
-				if exec_status != 0:
-					self.print_logs()
-					print('Game failed to start, ExecMainStatus: %s' % str(exec_status), file=sys.stderr)
-					return
-
-				if pid == 0:
-					self.print_logs()
-					print('Game failed to start, no PID found.', file=sys.stderr)
-					return
-
-				memory = self.get_memory_usage()
-				cpu = self.get_cpu_usage()
-				seconds_elapsed = round(time.time() - start_timer)
-				since_minutes = str(seconds_elapsed // 60)
-				since_seconds = seconds_elapsed % 60
-				if since_seconds < 10:
-					since_seconds = '0' + str(since_seconds)
-				else:
-					since_seconds = str(since_seconds)
-
-				if self.is_api_enabled():
-					players = self.get_player_count()
-					if players is not None:
-						ready = True
-						api_status = 'CONNECTED'
-					else:
-						api_status = 'waiting'
-				else:
-					api_status = 'not enabled'
-					# API is not enabled so just assume ready after some time
-					if seconds_elapsed >= 60:
-						ready = True
-
-				print(
-					'\033[1A\033[K Time: %s/%s, PID: %s, CPU: %s, Memory: %s, API: %s' % (
-						since_minutes + ':' + since_seconds,
-						max_wait_minutes + ':' + max_wait_seconds,
-						str(pid),
-						cpu,
-						memory,
-						api_status
-					)
-				)
-
-				if ready:
-					print('Game has started successfully!')
-					break
-				time.sleep(1)
-		except KeyboardInterrupt:
-			print('Cancelled startup wait check, (game is probably still started)')
+		logging.info('Starting game via systemd, this may take a minute...')
+		BackgroundCmd(['systemctl', 'start', self.service]).run()
 
 	def pre_stop(self) -> bool:
 		"""
@@ -781,38 +714,60 @@ class BaseService(ABC):
 		:return:
 		"""
 		if self.is_api_enabled():
-			counter = 0
-			print('Waiting for API to become available...', file=sys.stderr)
-			time.sleep(15)
-			while counter < 24:
+			logging.info('Waiting for API to become available for start confirmation...')
+			start_timer = time.time()
+			seconds_elapsed = round(time.time() - start_timer)
+			ready = False
+			max_wait = 300
+			max_wait_minutes = str(max_wait // 60)
+			max_wait_seconds = max_wait % 60
+			if max_wait_seconds < 10:
+				max_wait_seconds = '0' + str(max_wait_seconds)
+			else:
+				max_wait_seconds = str(max_wait_seconds)
+
+			while not ready and seconds_elapsed < max_wait:
+				time.sleep(15)
+				pid = self.get_pid()
+				exec_status = self.get_process_status()
+
+				if exec_status != 0:
+					logging.error('Game crashed during startup!')
+					return False
+
+				if pid == 0:
+					logging.error('Game failed to start or no PID found.')
+					return False
+
+				seconds_elapsed = round(time.time() - start_timer)
+				since_minutes = str(seconds_elapsed // 60)
+				since_seconds = seconds_elapsed % 60
+				if since_seconds < 10:
+					since_seconds = '0' + str(since_seconds)
+				else:
+					since_seconds = str(since_seconds)
+
 				players = self.get_player_count()
 				if players is not None:
-					msg = self.game.get_option_value('Instance Started (Discord)')
-					if msg != '':
-						if '{instance}' in msg:
-							msg = msg.replace('{instance}', self.get_name())
-						self.game.send_discord_message(msg)
-					return True
+					ready = True
 				else:
-					print('API not available yet', file=sys.stderr)
+					logging.info(
+						'Still waiting (%s:%s / %s:%s max wait)' %
+						(since_minutes, since_seconds, max_wait_minutes, max_wait_seconds)
+					)
 
-				# Is the game PID still available?
-				if self.get_pid() == 0:
-					print('Game process has exited unexpectedly!', file=sys.stderr)
-					return False
-
-				if self.get_game_pid() == 0:
-					print('Game server process has exited unexpectedly!', file=sys.stderr)
-					return False
-
-				time.sleep(10)
-				counter += 1
-
-			print('API did not reply within the allowed time!', file=sys.stderr)
-			return False
+			if ready:
+				msg = self.game.get_option_value('Instance Started (Discord)')
+				if msg != '':
+					if '{instance}' in msg:
+						msg = msg.replace('{instance}', self.get_name())
+					self.game.send_discord_message(msg)
+			else:
+				logging.warning('API did not respond within the allowed time!')
 		else:
-			# API not available, so nothing to check.
-			return True
+			logging.info('API is not available, skipping start confirmation.')
+
+		return True
 
 	def _delayed_action(self, action):
 		"""
@@ -895,7 +850,6 @@ class BaseService(ABC):
 
 		print('Stopping server, please wait...')
 		BackgroundCmd(['systemctl', 'stop', self.service]).run()
-		time.sleep(10)
 
 	def delayed_stop(self):
 		"""

@@ -24,10 +24,27 @@ class Cmd:
 		Initialize a new command wrapper with the given command list.
 		:param cmd:
 		"""
-		self.cmd = cmd
+		self.cmd: list = cmd
+		"""
+		list: The command to run
+		"""
+
 		self.result = None
-		self.executable = cmd[0] if len(cmd) > 0 else None
-		self.uses = 'stdout'
+		"""
+		CompletedProcess: The result of the command execution
+		"""
+
+		self.executable: str | None = cmd[0] if len(cmd) > 0 else None
+		"""
+		str: The executable name of the command
+		"""
+
+		self.uses: str | None = 'stdout'
+		"""
+		str: Whether to use stdout or stderr for output ('stdout' or 'stderr')
+		Set to None to disable output capture and just check return code.
+		This means stdout and stderr will be streamed instead.
+		"""
 
 	def sudo(self, runas: str | int):
 		"""
@@ -69,6 +86,13 @@ class Cmd:
 		"""
 		self.uses = 'stderr'
 
+	def stream_output(self):
+		"""
+		Set this command to stream to stdout/stderr directly.  Useful for long-running commands.
+		:return:
+		"""
+		self.uses = None
+
 	@property
 	def exists(self) -> bool:
 		"""
@@ -85,8 +109,10 @@ class Cmd:
 		"""
 		if self.uses == 'stdout':
 			return self.run().stdout.strip()
-		else:
+		elif self.uses == 'stderr':
 			return self.run().stderr.strip()
+		else:
+			return ''
 
 	@property
 	def lines(self) -> list:
@@ -128,9 +154,11 @@ class Cmd:
 		"""
 		if self.result is None:
 			try:
+				capture_output = self.uses is not None
+				logging.debug('Running command: %s' % ' '.join(self.cmd))
 				self.result = subprocess.run(
 					self.cmd,
-					capture_output=True,
+					capture_output=capture_output,
 					check=False,
 					encoding='utf-8'
 				)
@@ -139,7 +167,6 @@ class Cmd:
 			except OSError as e:
 				self.result = CmdFakeResponse('', str(e), 1)
 			finally:
-				logging.debug(' '.join(self.cmd))
 				if self.result.stdout:
 					logging.debug('STDOUT: %s' % self.result.stdout.strip())
 				if self.result.stderr:

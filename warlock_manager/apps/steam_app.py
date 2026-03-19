@@ -3,9 +3,10 @@ import re
 import sys
 import time
 from abc import ABC
+import logging
 
 from .base_app import BaseApp
-from ..libs.cmd import Cmd, BackgroundCmd
+from ..libs.cmd import Cmd
 
 
 def guess_steamcmd_path() -> str:
@@ -19,6 +20,7 @@ def guess_steamcmd_path() -> str:
 	)
 	for path in paths:
 		if os.path.exists(path):
+			logging.debug('Found steamcmd at %s' % path)
 			return path
 	raise FileNotFoundError('steamcmd not found in common locations. Please ensure steamcmd is installed.')
 
@@ -325,17 +327,18 @@ class SteamApp(BaseApp, ABC):
 
 		:return:
 		"""
+		logging.info('Updating game %s via Steam...' % self.name)
 		# Stop any running services before updating
 		services = []
 		for service in self.get_services():
 			if service.is_running() or service.is_starting():
-				print('Stopping service %s for update...' % service.service)
+				logging.info('Stopping service %s for update...' % service.service)
 				services.append(service.service)
-				BackgroundCmd(['systemctl', 'stop', service.service]).run()
+				service.stop()
 
 		if len(services) > 0:
 			# Wait for all services to stop, may take 5 minutes if players are online.
-			print('Waiting up to 5 minutes for all services to stop...')
+			logging.info('Waiting up to 5 minutes for all services to stop...')
 			counter = 0
 			while counter < 30:
 				all_stopped = True
@@ -348,7 +351,7 @@ class SteamApp(BaseApp, ABC):
 					break
 				time.sleep(10)
 		else:
-			print('No running services found, proceeding with update...')
+			logging.info('No running services found, proceeding with update...')
 
 		cmd = Cmd([
 			guess_steamcmd_path(),
@@ -360,6 +363,7 @@ class SteamApp(BaseApp, ABC):
 			self.steam_id,
 		])
 		cmd.sudo(self.get_app_uid())
+		cmd.stream_output()
 
 		if self.steam_branch != 'public':
 			cmd.append('-beta')
@@ -377,9 +381,8 @@ class SteamApp(BaseApp, ABC):
 		self.post_update()
 
 		if len(services) > 0:
-			print('Update completed, restarting previously running services...')
+			logging.info('Update completed, restarting previously running services...')
 			for service in services:
-				BackgroundCmd(['systemctl', 'start', service]).run()
-				time.sleep(10)
+				service.start()
 
 		return cmd.success
