@@ -192,7 +192,7 @@ class BaseService(ABC):
 		for config in self.configs.values():
 			if option in config.options:
 				previous_value = config.get_value(option)
-				if previous_value == value:
+				if previous_value == value and config.has_value(option):
 					# No change
 					return
 
@@ -1124,12 +1124,20 @@ class BaseService(ABC):
 			logging.info('Removed environment file for %s at %s' % (self.service, self._env_file))
 
 		target_dir = self.get_app_directory()
-		app_dir = self.game.get_app_directory()
+		app_dir = os.path.join(self.game.get_app_directory(), 'AppFiles')
 		if target_dir != app_dir and os.path.exists(target_dir):
 			# Only remove app directory if it's different than the game app.
 			# This is important because by default game instances share the same application base.
+			if not target_dir.startswith(app_dir):
+				raise Exception('Attempting to remove an application directory that is outside the scope of the game!')
+
 			shutil.rmtree(target_dir)
 			logging.info('Removed app directory for %s at %s' % (self.service, target_dir))
+
+		for config in self.configs.values():
+			if config.path and os.path.exists(config.path):
+				os.remove(config.path)
+				logging.info('Removed config file for %s at %s' % (self.service, config.path))
 
 		self.reload()
 
@@ -1145,7 +1153,7 @@ class BaseService(ABC):
 		"""
 		Get the list of supplemental files or directories for this game, or None if not applicable
 
-		This list of files **should not** be fully resolved, and will use `self.get_save_directory()` as the base path.
+		This list of files **should not** be fully resolved, and will use `self.get_app_directory()` as the base path.
 		For example, to return `AppFiles/SaveData` and `AppFiles/Config`:
 
 		```python
