@@ -963,12 +963,35 @@ class BaseService(ABC):
 		if os.path.exists(self._service_file):
 			config.read(self._service_file)
 
+		# Load default sections that are required
 		if 'Unit' not in config:
 			config['Unit'] = {}
 		if 'Service' not in config:
 			config['Service'] = {}
 		if 'Install' not in config:
 			config['Install'] = {}
+
+		# Calculate the working directory of this game service,
+		# If the game is registered as a multi-binary game, each service is contained within its own directory,
+		# otherwise all instances share AppFiles.
+		working_directory = self.get_app_directory()
+
+		# Populate the configuration with this environment
+		config['Unit']['Description'] = self.desc
+		config['Unit']['After'] = 'network.target'
+		config['Service']['Type'] = 'simple'
+		config['Service']['LimitNOFILE'] = '1000000'
+		config['Service']['User'] = str(self.game.get_app_uid())
+		config['Service']['Group'] = str(self.game.get_app_gid())
+		config['Service']['WorkingDirectory'] = working_directory
+		config['Service']['EnvironmentFile'] = self._env_file
+		config['Service']['ExecStart'] = self.get_executable()
+		config['Service']['ExecStop'] = '%s pre-stop --service %s' % (os.path.realpath(sys.argv[0]), self.service)
+		config['Service']['ExecStartPost'] = '%s post-start --service %s' % (os.path.realpath(sys.argv[0]), self.service)
+		config['Service']['Restart'] = 'on-failure'
+		config['Service']['RestartSec'] = '1800s'
+		config['Service']['TimeoutStartSec'] = '600s'
+		config['Install']['WantedBy'] = 'multi-user.target'
 		return config
 
 	def get_app_directory(self) -> str:
@@ -1039,28 +1062,6 @@ class BaseService(ABC):
 		:return:
 		"""
 		config = self.get_systemd_config()
-
-		# Calculate the working directory of this game service,
-		# If the game is registered as a multi-binary game, each service is contained within its own directory,
-		# otherwise all instances share AppFiles.
-		working_directory = self.get_app_directory()
-
-		config['Unit']['Description'] = self.desc
-		config['Unit']['After'] = 'network.target'
-		config['Service']['Type'] = 'simple'
-		config['Service']['LimitNOFILE'] = '1000000'
-		config['Service']['User'] = str(self.game.get_app_uid())
-		config['Service']['Group'] = str(self.game.get_app_gid())
-		config['Service']['WorkingDirectory'] = working_directory
-		config['Service']['EnvironmentFile'] = self._env_file
-		config['Service']['ExecStart'] = self.get_executable()
-		config['Service']['ExecStop'] = '%s pre-stop --service %s' % (os.path.realpath(sys.argv[0]), self.service)
-		config['Service']['ExecStartPost'] = '%s post-start --service %s' % (os.path.realpath(sys.argv[0]), self.service)
-		config['Service']['Restart'] = 'on-failure'
-		config['Service']['RestartSec'] = '1800s'
-		config['Service']['TimeoutStartSec'] = '600s'
-		config['Install']['WantedBy'] = 'multi-user.target'
-
 		with open(self._service_file, 'w') as f:
 			config.write(f)
 

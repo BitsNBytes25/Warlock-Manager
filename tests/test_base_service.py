@@ -38,7 +38,7 @@ class TestBaseService(unittest.TestCase):
 		self.assertEqual(2, len(config['Service']['ExecStartPre']), 'Expected exactly 2 parameters for ExecStartPre')
 		self.assertIn('/bin/sh -c "foo && bar && baz"', config['Service']['ExecStartPre'])
 		self.assertIn('/bin/sh -c "magic"', config['Service']['ExecStartPre'])
-		self.assertEqual('/usr/bin/application', config['Service']['ExecStart'])
+		self.assertEqual('/usr/bin/true', config['Service']['ExecStart'])
 
 	def test_write_systemd(self):
 		app = TestApp()
