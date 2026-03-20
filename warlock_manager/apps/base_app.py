@@ -561,7 +561,7 @@ class BaseApp(ABC):
 
 		:return:
 		"""
-		return pwd.getpwuid(os.getuid()).pw_dir
+		return pwd.getpwuid(self.get_app_uid()).pw_dir
 
 	def create_service(self, service_name: str) -> 'BaseService':
 		"""
