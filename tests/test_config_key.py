@@ -29,6 +29,8 @@ class TestConfigKey(unittest.TestCase):
 		self.assertEqual(123, key.to_system_type('123'))
 		self.assertEqual(-456, key.to_system_type('-456'))
 		self.assertEqual(0, key.to_system_type('0'))
+		self.assertEqual(0, key.to_system_type(''))  # Empty string should defer to default, which is 0 for int
+		self.assertEqual(3, key.to_system_type(3.14159))
 
 	def test_type_float(self):
 		key = ConfigKey.from_dict({'type': 'float'})

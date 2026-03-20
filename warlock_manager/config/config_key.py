@@ -47,7 +47,7 @@ class ConfigKey:
 		"""
 		# Auto convert
 		if self.val_type == 'int':
-			if value is None:
+			if value is None or value == '':
 				return 0
 			return int(value)
 		elif self.val_type == 'float':
