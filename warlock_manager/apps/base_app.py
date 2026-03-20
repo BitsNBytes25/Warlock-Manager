@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pwd
+import shutil
 import sys
 import time
 from abc import ABC
@@ -614,6 +615,23 @@ class BaseApp(ABC):
 
 		return svc
 
+	def remove(self):
+		"""
+		Remove this game and all instances under it
+
+		:return:
+		"""
+
+		for svc in self.get_services():
+			svc.remove_service()
+
+		self.services = []
+		self._svcs = None
+
+		# Cleanup directory structure
+		shutil.rmtree(os.path.join(self.get_app_directory(), 'AppFiles'))
+		shutil.rmtree(os.path.join(self.get_app_directory(), 'Environments'))
+
 	def remove_service(self, service_name: str):
 		"""
 		Remove a service instance for this game with the given name
@@ -690,6 +708,12 @@ class BaseApp(ABC):
 
 		:return:
 		"""
+
+		# Ensure some baseline directories exist with the correct ownership and permissions
+		self.makedirs(os.path.join(self.get_app_directory(), 'Backups'))
+		self.makedirs(os.path.join(self.get_app_directory(), 'AppFiles'))
+		self.makedirs(os.path.join(self.get_app_directory(), 'Environments'))
+
 		return True
 
 	def ensure_file_ownership(self, file: str):
@@ -716,13 +740,28 @@ class BaseApp(ABC):
 		"""
 		A replacement of os.makedirs, but also sets permissions as it creates the directories.
 
+		This variation expects a child file to be requested.
+		It will create the parent directory if it does not exist, but will not touch the actual file itself.
+
 		:param file:
 		:return:
 		"""
-		target_dir = os.path.dirname(file)
+		return self.makedirs(os.path.dirname(file))
+
+	def makedirs(self, target_dir: str):
+		"""
+		A replacement of os.makedirs, but also sets permissions as it creates the directories.
+
+		:param target_dir:
+		:return:
+		"""
 		if os.path.exists(target_dir):
 			# Parent directory exists, nothing to do
 			return
+
+		# Ensure the directory exists within the context of either this game or the game owner's home directory
+		if not (target_dir.startswith(self.get_app_directory()) or target_dir.startswith(self.get_home_directory())):
+			raise Exception('Cannot create directory outside of game directory: %s' % target_dir)
 
 		# Iterate up until the parent directory exists.
 		# This will determine where we need to send file_ownership to.

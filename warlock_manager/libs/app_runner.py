@@ -470,10 +470,23 @@ def app_runner(game: BaseApp):
 	def first_run():
 		"""
 		Perform first-run configuration for the game
-
-		:return:
 		"""
 		sys.exit(0 if game.first_run() else 1)
+
+	@app.command()
+	def remove(confirm: bool = False):
+		"""
+		Remove all game data, including configuration and services. Use with extreme caution!
+		"""
+		if not confirm:
+			print(
+				'To remove all game data, run this command with the --confirm flag. '
+				'This will delete all configuration and service data for the game.'
+			)
+			sys.exit(1)
+
+		game.remove()
+		sys.exit(0)
 
 	if 'api' in features:
 		@app.command()
