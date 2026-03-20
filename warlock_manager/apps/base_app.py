@@ -628,6 +628,12 @@ class BaseApp(ABC):
 		self.services = []
 		self._svcs = None
 
+		# Cleanup configurations
+		for config in self.configs.values():
+			if config.path and os.path.exists(config.path):
+				os.remove(config.path)
+				logging.info('Removed config file for %s at %s' % (self.name, config.path))
+
 		# Cleanup directory structure
 		shutil.rmtree(os.path.join(self.get_app_directory(), 'AppFiles'))
 		shutil.rmtree(os.path.join(self.get_app_directory(), 'Environments'))
