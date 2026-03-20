@@ -24,6 +24,17 @@ class SocketService(BaseService, ABC):
 		Set by default to /var/run/{service}.socket, but can be overridden by the service implementation if needed.
 		"""
 
+	def create_service(self):
+		"""
+		Create the systemd service for this game, including the service file and environment file
+		:return:
+		"""
+		super().create_service()
+
+		# Socket-based services require a systemd socket file
+		self.build_systemd_socket()
+		self.reload()
+
 	@deprecated('use cmd instead')
 	def _api_cmd(self, cmd: str):
 		return self.cmd(cmd)
@@ -171,3 +182,29 @@ class SocketService(BaseService, ABC):
 
 		with open(path, 'w') as f:
 			config.write(f)
+
+		logging.info('Created systemd socket for %s at %s' % (self.service, path))
+
+	def remove_service(self):
+		"""
+		Remove the systemd service for this game, including the service file and environment file
+		:return:
+		"""
+		super().remove_service()
+
+		# Remove the socket file if it exists
+		if self.socket and os.path.exists(self.socket):
+			try:
+				os.remove(self.socket)
+			except Exception as e:
+				logging.error('Error removing socket file %s: %s' % (self.socket, str(e)))
+
+		# Remove the systemd socket file
+		socket_path = os.path.join('/etc/systemd/system', os.path.basename(self.socket))
+		if os.path.exists(socket_path):
+			try:
+				os.remove(socket_path)
+			except Exception as e:
+				logging.error('Error removing systemd socket file %s: %s' % (socket_path, str(e)))
+
+		self.reload()
