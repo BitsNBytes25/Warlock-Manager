@@ -1,6 +1,9 @@
 import os
 import sys
+import subprocess
+import time
 from abc import ABC
+import logging
 
 from SystemdUnitParser import SystemdUnitParser
 from typing_extensions import deprecated
@@ -40,6 +43,70 @@ class SocketService(BaseService, ABC):
 			f.write(cmd + '\n')
 
 		return 'Sent command'
+
+	def watch(self, callback, timeout: int = 10) -> bool:
+		"""
+		Watch the systemd journal output for this service and call a callback function for each line.
+
+		The callback function should accept a single string argument (the journal line) and return True
+		when it has found the expected output, False to continue watching.
+
+		:param callback: Function that receives journal lines and returns True when watch is complete
+		:param timeout: Maximum time to watch in seconds (default: 10)
+		:return: True if callback signaled completion, False if timeout occurred
+		"""
+
+		start_time = time.time()
+		try:
+			# Start journalctl following from now on, for this service only
+			process = subprocess.Popen(
+				['journalctl', '-u', self.service, '-f', '--no-pager'],
+				stdout=subprocess.PIPE,
+				stderr=subprocess.DEVNULL,
+				encoding='utf-8',
+				bufsize=1
+			)
+
+			while True:
+				# Check if timeout has been exceeded
+				if time.time() - start_time > timeout:
+					process.terminate()
+					try:
+						process.wait(timeout=2)
+					except subprocess.TimeoutExpired:
+						process.kill()
+					return False
+
+				# Read the next line from journal
+				line = process.stdout.readline()
+				if not line:
+					# Process ended unexpectedly
+					return False
+
+				line = line.rstrip('\n')
+
+				# Call the callback function with the journal line
+				try:
+					if callback(line):
+						# Callback signaled completion
+						process.terminate()
+						try:
+							process.wait(timeout=2)
+						except subprocess.TimeoutExpired:
+							process.kill()
+						return True
+				except Exception as e:
+					logging.error('Error in watch callback: %s' % str(e))
+					process.terminate()
+					try:
+						process.wait(timeout=2)
+					except subprocess.TimeoutExpired:
+						process.kill()
+					raise
+
+		except Exception as e:
+			logging.error('Error while watching journal: %s' % str(e))
+			return False
 
 	def is_api_enabled(self) -> bool:
 		"""
