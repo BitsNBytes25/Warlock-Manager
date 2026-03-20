@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import pwd
 import sys
 import time
 from abc import ABC
@@ -553,6 +554,14 @@ class BaseApp(ABC):
 		:return:
 		"""
 		return os.path.dirname(os.path.realpath(sys.argv[0]))
+
+	def get_home_directory(self) -> str:
+		"""
+		Get the home directory of the user running this application
+
+		:return:
+		"""
+		return pwd.getpwuid(os.getuid()).pw_dir
 
 	def create_service(self, service_name: str) -> 'BaseService':
 		"""
