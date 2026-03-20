@@ -85,6 +85,10 @@ class BaseService(ABC):
 			if config.exists():
 				config.load()
 				self.configured = True
+			elif config.path:
+				# Doesn't exist, (that's fine),
+				# but the directory structure should be available to make it more simple for saving
+				self.game.ensure_file_parent_exists(config.path)
 
 	def get_options(self) -> list:
 		"""
