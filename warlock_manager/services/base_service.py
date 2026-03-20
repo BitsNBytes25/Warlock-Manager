@@ -561,6 +561,14 @@ class BaseService(ABC):
 		"""
 		return self._is_active() == 'deactivating'
 
+	def is_stopped(self) -> bool:
+		"""
+		Check if this service is currently stopped
+
+		:return:
+		"""
+		return self._is_active() == 'inactive'
+
 	def is_api_enabled(self) -> bool:
 		"""
 		Check if an API is available for this service

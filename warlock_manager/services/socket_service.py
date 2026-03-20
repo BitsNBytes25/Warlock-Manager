@@ -1,4 +1,5 @@
 import os
+import select
 import sys
 import subprocess
 import time
@@ -67,6 +68,11 @@ class SocketService(BaseService, ABC):
 		:return: True if callback signaled completion, False if timeout occurred
 		"""
 
+		# Watch polls journalctl, so if the process isn't running, don't even check.
+		# This has to be explictly "stopped", as starting/stopping still generate output.
+		if self.is_stopped():
+			return False
+
 		start_time = time.time()
 		last_successful_time = None
 		try:
@@ -94,12 +100,16 @@ class SocketService(BaseService, ABC):
 					return False
 
 				# Read the next line from journal
-				line = process.stdout.readline()
-				if not line:
-					# Process ended unexpectedly
-					return False
+				ready, _, _ = select.select([process.stdout], [], [], 0.1)
+				if ready:
+					line = process.stdout.readline()
+					if not line:
+						# Process ended unexpectedly
+						return False
 
-				line = line.rstrip('\n')
+					line = line.rstrip('\n')
+				else:
+					continue
 
 				# Call the callback function with the journal line
 				try:
