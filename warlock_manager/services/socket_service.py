@@ -57,6 +57,7 @@ class SocketService(BaseService, ABC):
 		"""
 
 		start_time = time.time()
+		last_successful_time = None
 		try:
 			# Start journalctl following from now on, for this service only
 			process = subprocess.Popen(
@@ -69,7 +70,11 @@ class SocketService(BaseService, ABC):
 
 			while True:
 				# Check if timeout has been exceeded
-				if time.time() - start_time > timeout:
+				# Check if the last successful is set; if so we have a much shorter time for a response.
+				if (
+					time.time() - start_time > timeout
+					or (last_successful_time is not None and time.time() - last_successful_time > 0.2)
+				):
 					process.terminate()
 					try:
 						process.wait(timeout=2)
@@ -87,7 +92,8 @@ class SocketService(BaseService, ABC):
 
 				# Call the callback function with the journal line
 				try:
-					if callback(line):
+					response = callback(line)
+					if response is False:
 						# Callback signaled completion
 						process.terminate()
 						try:
@@ -95,6 +101,11 @@ class SocketService(BaseService, ABC):
 						except subprocess.TimeoutExpired:
 							process.kill()
 						return True
+					elif response is True:
+						# A True signal indicates we're within the data we want
+						# and only process the next immediate lines
+						# which are sent within short intervals.
+						last_successful_time = time.time()
 				except Exception as e:
 					logging.error('Error in watch callback: %s' % str(e))
 					process.terminate()

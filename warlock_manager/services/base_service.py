@@ -301,7 +301,11 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		return None
+		players = self.get_players()
+		if players is not None:
+			return len(players)
+		else:
+			return None
 
 	def get_players(self) -> list | None:
 		"""

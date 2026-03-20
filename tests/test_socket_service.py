@@ -70,7 +70,7 @@ class TestSocketServiceWatch(unittest.TestCase):
 				side_effect=[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5]
 			):
 				def callback(line):
-					return 'NEVER_FOUND' in line
+					pass
 
 				result = svc.watch(callback, timeout=2)
 
