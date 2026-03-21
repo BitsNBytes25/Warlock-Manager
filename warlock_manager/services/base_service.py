@@ -567,7 +567,8 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		return self._is_active() == 'inactive'
+		status = self._is_active()
+		return status == 'inactive' or status == 'failed'
 
 	def is_api_enabled(self) -> bool:
 		"""
