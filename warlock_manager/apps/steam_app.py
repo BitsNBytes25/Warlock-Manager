@@ -263,6 +263,7 @@ class SteamApp(BaseApp, ABC):
 		# Run the steamcmd command
 		cmd = Cmd(command)
 		cmd.sudo(self.get_app_uid())
+		cmd.is_cacheable()
 
 		# Output from command should be Steam manifest format, parse it
 		dat = steamcmd_parse_manifest(cmd.text)
@@ -271,6 +272,26 @@ class SteamApp(BaseApp, ABC):
 		else:
 			print(f"App ID {self.steam_id} not found in steamcmd output.", file=sys.stderr)
 			return None
+
+	def get_steam_branches(self) -> list[str]:
+		"""
+		Get the list of branches available for this game on SteamCMD
+
+		:return:
+		"""
+		info = self.get_app_details()
+		if info is None:
+			return []
+
+		if 'depots' not in info:
+			logging.warning(f"No depot information found for app {self.steam_id}.")
+			return []
+
+		if 'branches' not in info['depots']:
+			logging.warning(f"No branch information found for app {self.steam_id}.")
+			return []
+
+		return list(info['depots']['branches'].keys())
 
 	def check_update_available(self) -> bool:
 		"""

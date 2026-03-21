@@ -1,6 +1,5 @@
 import os
 import select
-import sys
 import subprocess
 import time
 from abc import ABC
@@ -48,9 +47,10 @@ class SocketService(BaseService, ABC):
 		:return:
 		"""
 		if not self.is_api_enabled():
-			print("API is not enabled for this service, unable to send command.", file=sys.stderr)
+			logging.warning('API is not available for this service right now, unable to send command.')
 			return None
 
+		logging.info('Sending command to %s: %s' % (self.service, cmd))
 		with open(self.socket, 'w') as f:
 			f.write(cmd + '\n')
 

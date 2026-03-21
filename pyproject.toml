@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "warlock-manager"
-version = "2.0.2.dev3"
+version = "2.1.0.dev1"
 description = "Dependency library for game-server management applications."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -3,6 +3,8 @@ import subprocess
 import json
 import logging
 
+from warlock_manager.libs import cache
+
 
 class CmdFakeResponse:
 	"""
@@ -44,6 +46,11 @@ class Cmd:
 		str: Whether to use stdout or stderr for output ('stdout' or 'stderr')
 		Set to None to disable output capture and just check return code.
 		This means stdout and stderr will be streamed instead.
+		"""
+
+		self.cacheable: int | bool = False
+		"""
+		Set to a value > 0 if this command can be cached for N amount of seconds.
 		"""
 
 	def sudo(self, runas: str | int):
@@ -92,6 +99,14 @@ class Cmd:
 		:return:
 		"""
 		self.uses = None
+
+	def is_cacheable(self, expires: int = 3600):
+		"""
+		Set this command as cacheable for N seconds.
+		:param expires:
+		:return:
+		"""
+		self.cacheable = expires
 
 	@property
 	def exists(self) -> bool:
@@ -146,6 +161,17 @@ class Cmd:
 		"""
 		return self.run().returncode
 
+	def try_cache(self) -> str | None:
+		if self.cacheable is True:
+			# Convert cacheable to a default number of seconds
+			self.cacheable = 60 * 30
+
+		if self.uses is None:
+			# Not supported for streaming commands
+			return None
+
+		return cache.get_cache(' '.join(self.cmd), expires=self.cacheable)
+
 	def run(self):
 		"""
 		Run the command and capture the result. Caches the result so subsequent calls don't re-run the command.
@@ -153,9 +179,20 @@ class Cmd:
 		:return:
 		"""
 		if self.result is None:
+			logging.debug('Running command: %s' % ' '.join(self.cmd))
+			if self.cacheable is not False:
+				cached = self.try_cache()
+				if cached is not None:
+					logging.debug('Using cached result instead')
+					self.result = CmdFakeResponse(
+						cached if self.uses == 'stdout' else '',
+						cached if self.uses == 'stderr' else '',
+						0
+					)
+					return self.result
+
 			try:
 				capture_output = self.uses is not None
-				logging.debug('Running command: %s' % ' '.join(self.cmd))
 				self.result = subprocess.run(
 					self.cmd,
 					capture_output=capture_output,
@@ -172,6 +209,15 @@ class Cmd:
 				if self.result.stderr:
 					logging.debug('STDERR: %s' % self.result.stderr.strip())
 				logging.debug('Return code: %d' % self.result.returncode)
+
+		if self.cacheable is not False and self.result.returncode == 0:
+			# Do we save stdout or stderr?
+			if self.uses == 'stdout':
+				cache.save_cache(' '.join(self.cmd), self.result.stdout)
+			elif self.uses == 'stderr':
+				cache.save_cache(' '.join(self.cmd), self.result.stderr)
+			else:
+				logging.warning('Attempting to cache command output without capturing it. This is not supported!')
 
 		return self.result
 
@@ -204,6 +250,10 @@ class BackgroundCmd(Cmd):
 		:return:
 		"""
 		if self.result is None:
+
+			if self.cacheable is not None:
+				logging.warning('Background commands cannot be cached!')
+
 			try:
 				self.result = subprocess.Popen(
 					self.cmd,
