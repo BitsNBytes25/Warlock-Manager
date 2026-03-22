@@ -1,9 +1,11 @@
 import os
-import select
 import subprocess
 import time
 from abc import ABC
 import logging
+import threading
+from queue import Queue
+from typing import Callable, Optional
 
 from SystemdUnitParser import SystemdUnitParser
 from typing_extensions import deprecated
@@ -50,95 +52,144 @@ class SocketService(BaseService, ABC):
 			logging.warning('API is not available for this service right now, unable to send command.')
 			return None
 
-		logging.info('Sending command to %s: %s' % (self.service, cmd))
+		port_open = self.is_port_open()
+		if port_open is False:
+			logging.warning('Port is not open for this service right now, refusing to send command.')
+			return None
+
+		logging.debug('Sending command to %s: %s' % (self.service, cmd))
 		with open(self.socket, 'w') as f:
 			f.write(cmd + '\n')
 
 		return 'Sent command'
 
-	def watch(self, callback, timeout: int = 10) -> bool:
+	def write_socket(self, content):
+		"""
+		Simple write to socket command
+
+		Skips any checks to allow for raw access to the socket,
+		only checks if the socket file exists.
+
+		:param content:
+		:return:
+		"""
+		if not self.socket or not os.path.exists(self.socket):
+			logging.warning('Socket file %s does not exist, unable to write to it.' % self.socket)
+			return
+
+		with open(self.socket, 'w') as f:
+			f.write(content + '\n')
+
+	def watch(self, callback: Callable[[str], Optional[bool]], timeout: int = 10) -> bool:
 		"""
 		Watch the systemd journal output for this service and call a callback function for each line.
 
-		The callback function should accept a single string argument (the journal line) and return True
-		when it has found the expected output, False to continue watching.
+		The callback function should accept a single string argument (the journal line) and return:
+		- True: Line matched, continue watching and extend timeout by 0.5 seconds
+		- False: Found what we need, stop immediately
+		- None/other: Line didn't match, keep watching
 
-		:param callback: Function that receives journal lines and returns True when watch is complete
+		:param callback: Function that receives journal lines and returns True/False
 		:param timeout: Maximum time to watch in seconds (default: 10)
-		:return: True if callback signaled completion, False if timeout occurred
+		:return: True if callback signaled completion (False return), False if timeout occurred
 		"""
 
-		# Watch polls journalctl, so if the process isn't running, don't even check.
-		# This has to be explictly "stopped", as starting/stopping still generate output.
+		# Don't watch if service is already stopped
 		if self.is_stopped():
 			return False
 
-		start_time = time.time()
-		last_successful_time = None
-		try:
-			# Start journalctl following from now on, for this service only
-			process = subprocess.Popen(
-				['journalctl', '-u', self.service, '-f', '--no-pager'],
-				stdout=subprocess.PIPE,
-				stderr=subprocess.DEVNULL,
-				encoding='utf-8',
-				bufsize=1
-			)
+		# Thread-safe buffer for process output
+		output_buffer = Queue()
+		stop_event = threading.Event()
+		process_exception = []
 
-			while True:
-				# Check if timeout has been exceeded
-				# Check if the last successful is set; if so we have a much shorter time for a response.
-				if (
-					time.time() - start_time > timeout
-					or (last_successful_time is not None and time.time() - last_successful_time > 0.2)
-				):
+		def read_process_output():
+			"""Thread function: reads from process and puts lines into the buffer"""
+			try:
+				process = subprocess.Popen(
+					['journalctl', '-u', self.service, '-f', '--no-pager', '--since', 'now'],
+					stdout=subprocess.PIPE,
+					stderr=subprocess.DEVNULL,
+					encoding='utf-8',
+					bufsize=0
+				)
+				while not stop_event.is_set():
+					line = process.stdout.readline()
+					output_buffer.put(line.rstrip())
+				else:
 					process.terminate()
-					try:
-						process.wait(timeout=2)
-					except subprocess.TimeoutExpired:
-						process.kill()
+
+			except Exception as e:
+				logging.error(f'Error starting process: {e}')
+				process_exception.append(e)
+			finally:
+				# Signal end of stream
+				output_buffer.put(None)
+
+		# Start the reader thread
+		reader_thread = threading.Thread(target=read_process_output, daemon=True)
+		reader_thread.start()
+
+		start_time = time.time()
+		last_true_time = None
+
+		try:
+			while True:
+				# Check for overall timeout
+				if time.time() - start_time > timeout:
+					logging.debug(f'Watch timeout reached ({timeout}s)')
+					stop_event.set()
 					return False
 
-				# Read the next line from journal
-				ready, _, _ = select.select([process.stdout], [], [], 0.1)
-				if ready:
-					line = process.stdout.readline()
-					if not line:
-						# Process ended unexpectedly
+				# Check for extended timeout (0.5s after last True)
+				if last_true_time is not None:
+					if time.time() - last_true_time > 0.3:
+						logging.debug('Extended timeout reached (0.3s after last True)')
+						stop_event.set()
 						return False
 
-					line = line.rstrip('\n')
-				else:
+				# Calculate remaining time for queue.get()
+				remaining_overall = timeout - (time.time() - start_time)
+				wait_time = min(0.1, max(0.01, remaining_overall))  # Small wait to keep responsive
+
+				try:
+					line = output_buffer.get(timeout=wait_time)
+
+					# None signals end of stream from the process
+					if line is None:
+						stop_event.set()
+						return False
+
+					# Call the callback with the journal line
+					try:
+						response = callback(line)
+
+						if response is False:
+							# Callback signaled completion
+							logging.debug('Callback returned False, stopping watch')
+							stop_event.set()
+							return True
+
+						elif response is True:
+							# Update the extended timeout
+							last_true_time = time.time()
+							logging.debug('Callback returned True, extending timeout')
+
+						# None/other: continue watching without extending timeout
+
+					except Exception as e:
+						logging.error(f'Error in watch callback: {e}')
+						stop_event.set()
+						raise
+
+				except Exception:
+					# Queue timeout (normal, just continue)
 					continue
 
-				# Call the callback function with the journal line
-				try:
-					response = callback(line)
-					if response is False:
-						# Callback signaled completion
-						process.terminate()
-						try:
-							process.wait(timeout=2)
-						except subprocess.TimeoutExpired:
-							process.kill()
-						return True
-					elif response is True:
-						# A True signal indicates we're within the data we want
-						# and only process the next immediate lines
-						# which are sent within short intervals.
-						last_successful_time = time.time()
-				except Exception as e:
-					logging.error('Error in watch callback: %s' % str(e))
-					process.terminate()
-					try:
-						process.wait(timeout=2)
-					except subprocess.TimeoutExpired:
-						process.kill()
-					raise
-
-		except Exception as e:
-			logging.error('Error while watching journal: %s' % str(e))
-			return False
+		finally:
+			# Ensure the reader thread stops
+			stop_event.set()
+			reader_thread.join(timeout=0.3)
 
 	def is_api_enabled(self) -> bool:
 		"""
