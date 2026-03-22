@@ -386,6 +386,7 @@ def app_runner(game: BaseApp):
 				'cpu_usage': svc.get_cpu_usage(),
 				'game_pid': svc.get_game_pid(),
 				'service_pid': svc.get_pid(),
+				'ports': svc.get_ports(),
 			}
 			stats[svc.service] = svc.get_info() | svc_stats
 		print(json.dumps(stats))

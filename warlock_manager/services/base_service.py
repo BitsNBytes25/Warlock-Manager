@@ -5,8 +5,6 @@ import shutil
 import sys
 import time
 from abc import abstractmethod, ABC
-import psutil
-import socket
 
 from SystemdUnitParser import SystemdUnitParser
 
@@ -14,6 +12,8 @@ from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.libs.get_wan_ip import get_wan_ip
 from warlock_manager.libs.tui import prompt_yn, prompt_text
 from warlock_manager.libs.cmd import Cmd, BackgroundCmd
+from warlock_manager.libs.ports import get_listening_port
+from warlock_manager.libs.firewall import Firewall
 
 
 class BaseService(ABC):
@@ -609,22 +609,7 @@ class BaseService(ABC):
 			# If either port or protocol are not defined, signal that this check cannot complete.
 			return None
 
-		if check_protocol.upper() == 'TCP':
-			check_type = socket.SOCK_STREAM
-		else:
-			check_type = socket.SOCK_DGRAM
-
-		connections = psutil.net_connections(kind='inet')
-		for connection in connections:
-			if connection.laddr.port == check_port and connection.type == check_type:
-				if check_type == socket.SOCK_STREAM and connection.status == 'LISTEN':
-					# TCP connections have registered LISTEN status
-					return True
-				elif check_type == socket.SOCK_DGRAM:
-					# UDP connections are just ...... there.
-					return True
-
-		return False
+		return get_listening_port(check_port, check_protocol) is not None
 
 	def enable(self):
 		"""
@@ -706,6 +691,50 @@ class BaseService(ABC):
 		:return:
 		"""
 		...
+
+	def get_ports(self) -> list:
+		"""
+		Get the list of all ports used by this game, (at least that are registered)
+		and their status
+
+		:return:
+		"""
+		ret = []
+		game_pid = self.get_game_pid()
+		pid = self.get_pid()
+
+		for port_def in self.get_port_definitions():
+			if isinstance(port_def[0], int):
+				port = port_def[0]
+			else:
+				port = self.get_option_value(port_def[0])
+
+			protocol = port_def[1]
+			description = port_def[2]
+
+			listening_status = get_listening_port(port, protocol)
+			if listening_status is not None:
+				is_global = listening_status['ip'] != '127.0.0.1'
+				is_listening = True
+				is_owned = listening_status['pid'] in (game_pid, pid)
+				is_open = Firewall.is_global_open(port, protocol)
+			else:
+				is_global = False
+				is_listening = False
+				is_owned = False
+				is_open = Firewall.is_global_open(port, protocol)
+
+			ret.append({
+				'port': port,
+				'protocol': protocol,
+				'description': description,
+				'global': is_global,
+				'listening': is_listening,
+				'owned': is_owned,
+				'open': is_open,
+			})
+
+		return ret
 
 	def start(self):
 		"""
@@ -1088,6 +1117,17 @@ class BaseService(ABC):
 
 		return base
 
+	def get_save_directory(self) -> str:
+		"""
+		Get the parent directory that contains the Save files for this game
+
+		By default this is just the app directory (AppFiles or AppFiles/{servicename}),
+		but this can be changed if the game saves files outside this directory.
+
+		:return:
+		"""
+		return self.get_app_directory()
+
 	def get_backup_directory(self) -> str:
 		"""
 		Get the backup directory for this game service, which is the directory that contains backups of the game files
@@ -1269,7 +1309,7 @@ class BaseService(ABC):
 		"""
 		base = self.game.get_app_directory()
 		temp_store = os.path.join(base, '.save-%s' % self.service)
-		save_source = self.get_app_directory()
+		save_source = self.get_save_directory()
 		save_files = self.get_save_files()
 
 		# Temporary directories for various file sources
@@ -1407,7 +1447,7 @@ class BaseService(ABC):
 
 		base = self.game.get_app_directory()
 		temp_store = os.path.join(base, '.restore-%s' % self.service)
-		save_dest = self.get_app_directory()
+		save_dest = self.get_save_directory()
 
 		os.makedirs(temp_store, exist_ok=True)
 
