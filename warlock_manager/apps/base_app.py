@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 from warlock_manager.libs.tui import prompt_yn, prompt_text
 from warlock_manager.libs import utils
+from warlock_manager.libs.ports import get_ports
 
 
 class BaseApp(ABC):
@@ -497,7 +498,8 @@ class BaseApp(ABC):
 
 		protocol = protocol.lower()
 
-		used_ports = set()
+		# Preseed the list of used ports with the ports currently in use by the system
+		used_ports = get_ports(protocol)
 		candidate_services = [service] + self.get_services()
 		for svc in candidate_services:
 			port_defs = svc.get_port_definitions()

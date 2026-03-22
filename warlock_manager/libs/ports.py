@@ -38,6 +38,33 @@ def get_listening_port(port: int, protocol: str) -> dict | None:
 	return None
 
 
+def get_ports(protocol: str) -> set[int]:
+	"""
+	Get all listening ports for the given protocol
+
+	:param protocol: Protocol, either TCP or UDP
+	:return:
+	"""
+	if protocol.upper() == 'TCP':
+		check_type = socket.SOCK_STREAM
+	else:
+		check_type = socket.SOCK_DGRAM
+
+	ports = set()
+
+	connections = psutil.net_connections(kind='inet')
+	for connection in connections:
+		if connection.type == check_type:
+			if check_type == socket.SOCK_STREAM and connection.status == 'LISTEN':
+				# TCP connections have registered LISTEN status
+				ports.add(connection.laddr.port)
+			elif check_type == socket.SOCK_DGRAM:
+				# UDP connections are just ...... there.
+				ports.add(connection.laddr.port)
+
+	return ports
+
+
 def _standardize_connection(connection) -> dict:
 	return {
 		'pid': connection.pid,
