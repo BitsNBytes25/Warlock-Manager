@@ -21,21 +21,27 @@ class Firewall:
 
 		# Check for UFW
 		try:
-			if 'Status: active' in Cmd(['ufw', 'status']).text:
+			ufw_check = Cmd(['ufw', 'status'])
+			ufw_check.is_memory_cacheable(3)
+			if 'Status: active' in ufw_check.text:
 				return 'ufw'
 		except FileNotFoundError:
 			pass
 
 		# Check for Firewalld
 		try:
-			if 'running' in Cmd(['firewall-cmd', '--state']).text:
+			firewalld_check = Cmd(['firewall-cmd', '--state'])
+			firewalld_check.is_memory_cacheable(3)
+			if 'running' in firewalld_check.text:
 				return 'firewalld'
 		except FileNotFoundError:
 			pass
 
 		# Check for iptables
 		try:
-			if Cmd(['iptables', '-L']).success:
+			iptables_check = Cmd(['iptables', '-L'])
+			iptables_check.is_memory_cacheable(3)
+			if iptables_check.success:
 				return 'iptables'
 		except FileNotFoundError:
 			pass
@@ -53,15 +59,21 @@ class Firewall:
 		"""
 
 		# Check for UFW
-		if Cmd(['ufw', '--version']).success:
+		ufw_check = Cmd(['ufw', '--version'])
+		ufw_check.is_memory_cacheable(3)
+		if ufw_check.success:
 			return 'ufw'
 
 		# Check for Firewalld
-		if Cmd(['firewall-cmd', '--version']).success:
+		firewalld_check = Cmd(['firewall-cmd', '--version'])
+		firewalld_check.is_memory_cacheable(3)
+		if firewalld_check.success:
 			return 'firewalld'
 
 		# Check for iptables
-		if Cmd(['iptables', '--version']).success:
+		iptables_check = Cmd(['iptables', '--version'])
+		iptables_check.is_memory_cacheable(3)
+		if iptables_check.success:
 			return 'iptables'
 
 		return None
@@ -123,6 +135,57 @@ class Firewall:
 		elif firewall == 'iptables':
 			Cmd(['iptables', '-D', 'INPUT', '-p', protocol, '--dport', str(port), '-j', 'ACCEPT']).run()
 			Cmd(['service', 'iptables', 'save']).run()
+
+		else:
+			raise OSError("No supported firewall found on the system.")
+
+	@classmethod
+	def is_global_open(cls, port: int, protocol: str = 'tcp') -> bool:
+		"""
+		Checks if a specific port is open in the system's firewall.
+		Supports UFW, Firewalld, and iptables.
+
+		This checks if the source host is global and not a specific host.
+
+		Args:
+			port (int): The port number to check.
+			protocol (str, optional): The protocol to use ('tcp' or 'udp'). Defaults to 'tcp'.
+		"""
+
+		firewall = cls.get_enabled()
+
+		if firewall is None:
+			# No firewall is enabled, assume it's open
+			return True
+
+		elif firewall == 'ufw':
+			# UFW: look for "ALLOW" for the port/protocol from "Anywhere"
+			ufw_check = Cmd(['ufw', 'status'])
+			ufw_check.is_memory_cacheable(3)
+			result = ufw_check.text
+			port_proto = f"{port}/{protocol}"
+			for line in result.splitlines():
+				if port_proto in line and "ALLOW" in line and ("Anywhere" in line or "Anywhere (v6)" in line):
+					return True
+			return False
+
+		elif firewall == 'firewalld':
+			# Firewalld: check if port/protocol is listed in --list-ports
+			firewalld_check = Cmd(['firewall-cmd', '--list-ports'])
+			firewalld_check.is_memory_cacheable(3)
+			result = firewalld_check.text
+			port_proto = f"{port}/{protocol}"
+			return port_proto in result.split()
+
+		elif firewall == 'iptables':
+			# iptables: look for ACCEPT rule for port/protocol from 0.0.0.0/0
+			iptables_check = Cmd(['iptables', '-L', 'INPUT', '-n'])
+			iptables_check.is_memory_cacheable(3)
+			result = iptables_check.text
+			for line in result.splitlines():
+				if "ACCEPT" in line and protocol in line and str(port) in line and ("0.0.0.0/0" in line or "anywhere" in line):
+					return True
+			return False
 
 		else:
 			raise OSError("No supported firewall found on the system.")
