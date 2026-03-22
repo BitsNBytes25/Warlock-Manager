@@ -5,6 +5,8 @@ import shutil
 import sys
 import time
 from abc import abstractmethod, ABC
+import psutil
+import socket
 
 from SystemdUnitParser import SystemdUnitParser
 
@@ -265,6 +267,16 @@ class BaseService(ABC):
 		"""
 		return None
 
+	def get_port_protocol(self) -> str | None:
+		"""
+		Get if the primary port of this service is UDP or TCP.
+
+		(Most games use UDP, but override this to change it)
+
+		:return:
+		"""
+		return 'UDP'
+
 	def prompt_option(self, option: str):
 		"""
 		Prompt the user to set a configuration option for the service
@@ -321,7 +333,9 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		pid = Cmd(['systemctl', 'show', '-p', 'MainPID', self.service]).text[8:]
+		check = Cmd(['systemctl', 'show', '-p', 'MainPID', self.service])
+		check.is_memory_cacheable(3)
+		pid = check.text[8:]
 		return int(pid)
 
 	def get_process_status(self) -> int:
@@ -527,7 +541,9 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		return Cmd(['systemctl', 'is-active', self.service]).text
+		check = Cmd(['systemctl', 'is-active', self.service])
+		check.is_memory_cacheable(3)
+		return check.text
 
 	def is_enabled(self) -> bool:
 		"""
@@ -576,6 +592,38 @@ class BaseService(ABC):
 
 		:return:
 		"""
+		return False
+
+	def is_port_open(self) -> bool | None:
+		"""
+		Check if the primary port for this game is open
+
+		Depends upon get_port and get_port_protocol to return non-null values
+
+		:return:
+		"""
+		check_port = self.get_port()
+		check_protocol = self.get_port_protocol()
+
+		if check_port is None or check_protocol is None:
+			# If either port or protocol are not defined, signal that this check cannot complete.
+			return None
+
+		if check_protocol.upper() == 'TCP':
+			check_type = socket.SOCK_STREAM
+		else:
+			check_type = socket.SOCK_DGRAM
+
+		connections = psutil.net_connections(kind='inet')
+		for connection in connections:
+			if connection.laddr.port == check_port and connection.type == check_type:
+				if check_type == socket.SOCK_STREAM and connection.status == 'LISTEN':
+					# TCP connections have registered LISTEN status
+					return True
+				elif check_type == socket.SOCK_DGRAM:
+					# UDP connections are just ...... there.
+					return True
+
 		return False
 
 	def enable(self):
@@ -730,59 +778,77 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		if self.is_api_enabled():
-			logging.info('Waiting for API to become available for start confirmation...')
-			start_timer = time.time()
+		logging.info('Waiting for game to become available for start confirmation...')
+		start_timer = time.time()
+		seconds_elapsed = round(time.time() - start_timer)
+		ready = False
+		socket_ready = False
+		max_wait = 300
+		max_wait_minutes = str(max_wait // 60)
+		max_wait_seconds = max_wait % 60
+		if max_wait_seconds < 10:
+			max_wait_seconds = '0' + str(max_wait_seconds)
+		else:
+			max_wait_seconds = str(max_wait_seconds)
+
+		while not ready and seconds_elapsed < max_wait:
 			seconds_elapsed = round(time.time() - start_timer)
-			ready = False
-			max_wait = 300
-			max_wait_minutes = str(max_wait // 60)
-			max_wait_seconds = max_wait % 60
-			if max_wait_seconds < 10:
-				max_wait_seconds = '0' + str(max_wait_seconds)
+			since_minutes = str(seconds_elapsed // 60)
+			since_seconds = seconds_elapsed % 60
+			if since_seconds < 10:
+				since_seconds = '0' + str(since_seconds)
 			else:
-				max_wait_seconds = str(max_wait_seconds)
+				since_seconds = str(since_seconds)
 
-			while not ready and seconds_elapsed < max_wait:
-				time.sleep(15)
-				pid = self.get_pid()
-				exec_status = self.get_process_status()
+			logging.info(
+				'Waiting (%s:%s / %s:%s max wait)' %
+				(since_minutes, since_seconds, max_wait_minutes, max_wait_seconds)
+			)
+			time.sleep(15)
 
-				if exec_status != 0:
-					logging.error('Game crashed during startup!')
-					return False
+			# Base checks; the process should still be running
+			if self.get_process_status() != 0:
+				logging.error('Game crashed during startup!')
+				return False
 
-				if pid == 0:
-					logging.error('Game failed to start or no PID found.')
-					return False
+			if self.get_pid() == 0:
+				logging.error('Game failed to start or no PID found.')
+				return False
 
-				seconds_elapsed = round(time.time() - start_timer)
-				since_minutes = str(seconds_elapsed // 60)
-				since_seconds = seconds_elapsed % 60
-				if since_seconds < 10:
-					since_seconds = '0' + str(since_seconds)
+			if not socket_ready:
+				# Pull the socket information to know if the game is running yet
+				# If it's None, that means this information won't be available and we can skip the check.
+				port_open = self.is_port_open()
+				if port_open is None:
+					logging.info('Unable to determine if port is open, skipping check.')
+					socket_ready = True
+				elif port_open is True:
+					socket_ready = True
+					logging.info('Game port is open, continuing to API check')
 				else:
-					since_seconds = str(since_seconds)
+					logging.info('Game port is closed, waiting for it to open.')
+					continue
 
+			if self.is_api_enabled():
 				players = self.get_player_count()
 				if players is not None:
+					logging.info('API connected!')
 					ready = True
-				else:
-					logging.info(
-						'Still waiting (%s:%s / %s:%s max wait)' %
-						(since_minutes, since_seconds, max_wait_minutes, max_wait_seconds)
-					)
-
-			if ready:
-				msg = self.game.get_option_value('Instance Started (Discord)')
-				if msg != '':
-					if '{instance}' in msg:
-						msg = msg.replace('{instance}', self.get_name())
-					self.game.send_discord_message(msg)
 			else:
-				logging.warning('API did not respond within the allowed time!')
+				logging.info('API is not available, skipping start confirmation.')
+				ready = True
+
+		if ready:
+			# Perform all operations required for a successful, confirmed startup
+			msg = self.game.get_option_value('Instance Started (Discord)')
+			if msg != '':
+				if '{instance}' in msg:
+					msg = msg.replace('{instance}', self.get_name())
+				self.game.send_discord_message(msg)
 		else:
-			logging.info('API is not available, skipping start confirmation.')
+			# Checks failed to complete within allowed time.
+			# This does not mean the game didn't start, it just didn't start _within allocated time_.
+			logging.warning('API did not respond within the allowed time!')
 
 		return True
 
