@@ -1,6 +1,9 @@
+import math
 import os
 import readline
+import shutil
 from typing import Union
+import logging
 
 
 def print_header(title: str, width: int = 80, clear: bool = False) -> None:
@@ -22,6 +25,22 @@ def print_header(title: str, width: int = 80, clear: bool = False) -> None:
 	print(border)
 	print(title.center(width))
 	print(border)
+
+
+def print_subheader(text: str):
+	print(f'== {text}')
+	print('')
+
+
+def get_terminal_width(default: int = 80) -> int:
+	"""
+	Returns the width of the terminal window in characters.
+	Falls back to `default` if the size cannot be determined.
+	"""
+	try:
+		return shutil.get_terminal_size().columns
+	except (AttributeError, OSError):
+		return default
 
 
 def prompt_text(prompt: str = 'Enter text: ', default: str = '', prefill: bool = False) -> str:
@@ -76,6 +95,45 @@ def prompt_yn(prompt: str = 'Yes or no?', default: str = 'y') -> bool:
 			print("Please respond with 'y' or 'n'.")
 
 
+def prompt_options(prompt: str = 'Enter the option number: ', options: list = None, default: str = '') -> str:
+	"""
+	Prompt the user with a list of options and return the selected option.
+
+	The full text value of the option is returned, not the index!
+
+	:param prompt: The prompt to display for input.
+    :param options: The list of options to choose from.
+    :param default: The default value to return if the user presses Enter.
+    :return: The selected option as a string.
+	"""
+	if not options or not isinstance(options, list):
+		# No valid options set, nothing to do
+		return default
+
+	# Display options with numbers
+	for idx, opt in enumerate(options, 1):
+		if opt == default:
+			default_flag = '* '
+		else:
+			default_flag = '  '
+
+		if idx < 10:
+			print(f"{default_flag} {idx} - {opt}")
+		else:
+			print(f"{default_flag}{idx} - {opt}")
+
+	print('')
+	while True:
+		choice = input(prompt).strip()
+		if choice == '':
+			return default
+		if choice.isdigit():
+			idx = int(choice) - 1
+			if 0 <= idx < len(options):
+				return options[idx]
+		print("Please enter a valid option number.")
+
+
 class Table:
 	"""
 	Displays data in a table format
@@ -128,13 +186,14 @@ class Table:
 
 	def render(self):
 		"""
-		Render the table with the given list of services
+		Render the table with the given list of rows
 
-		:param services: Services[]
 		:return:
 		"""
 		rows = []
 		col_lengths = []
+		term_width = get_terminal_width()
+		total_width = 0
 
 		if self.header is not None:
 			row = []
@@ -155,6 +214,28 @@ class Table:
 				row.append(val)
 				col_lengths[i] = max(col_lengths[i], self._text_width(val))
 			rows.append(row)
+
+		total_width = sum(col_lengths) + (3 * len(col_lengths) + 1 if self.borders else 2 * (len(col_lengths) + 1))
+		if total_width > term_width:
+			logging.debug(f'Total data width {total_width} exceeds terminal width {term_width}, shrinking columns')
+			widest_column_width = 0
+			widest_column_idx = 0
+			shrunk = 0
+			for i in range(len(col_lengths)):
+				if col_lengths[i] > widest_column_width:
+					widest_column_width = col_lengths[i]
+					widest_column_idx = i
+				if col_lengths[i] > 12:
+					# Shrink columns down proportionally to fit the terminal width.
+					new_width = math.ceil(col_lengths[i] * (term_width / total_width))
+					shrunk += col_lengths[i] - new_width
+					col_lengths[i] = new_width
+			if total_width - shrunk > term_width:
+				# Shrink the largest column the remainder to fit the width
+				col_lengths[widest_column_idx] = col_lengths[widest_column_idx] - (total_width - shrunk - term_width)
+
+			total_width = sum(col_lengths) + (3 * len(col_lengths) + 1 if self.borders else 2 * (len(col_lengths) + 1))
+			logging.debug(f'Shrunk columns to {total_width}')
 
 		for row in rows:
 			vals = []
@@ -179,13 +260,17 @@ class Table:
 					else:
 						vals.append(' %s ' % ('-' * width,))
 				else:
+					if len(row[i]) > col_lengths[i]:
+						str_val = row[i][:col_lengths[i] - 1] + '…'
+					else:
+						str_val = row[i]
 					width = col_lengths[i] - (self._text_width(row[i]) - len(row[i]))
 					if align == 'r':
-						vals.append(row[i].rjust(width))
+						vals.append(str_val.rjust(width))
 					elif align == 'c':
-						vals.append(row[i].center(width))
+						vals.append(str_val.center(width))
 					else:
-						vals.append(row[i].ljust(width))
+						vals.append(str_val.ljust(width))
 
 			if self.borders:
 				if is_border:
