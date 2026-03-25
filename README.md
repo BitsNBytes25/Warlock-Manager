@@ -1,7 +1,8 @@
 # Warlock Manager
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/warlock-manager.svg)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/warlock-manager)
+[![PyPI - Version](https://img.shields.io/pypi/v/warlock-manager)](https://pypi.org/project/warlock-manager/)
 
 Warlock Manager is a robust, extensible Python library for building game server management applications. It provides a comprehensive foundation for managing game applications, services, configurations, and server communications.
 
