@@ -594,22 +594,29 @@ class BaseService(ABC):
 		"""
 		return False
 
-	def is_port_open(self) -> bool | None:
+	def is_port_open(self) -> bool:
 		"""
-		Check if the primary port for this game is open
-
-		Depends upon get_port and get_port_protocol to return non-null values
+		Check if all required ports for this game are open
 
 		:return:
 		"""
-		check_port = self.get_port()
-		check_protocol = self.get_port_protocol()
+		for ports in self.get_port_definitions():
+			if len(ports) >= 4:
+				# Check if this port is optional; if so we don't care about it.
+				if ports[3]:
+					continue
+			if isinstance(ports[0], int):
+				check_port = ports[0]
+			else:
+				check_port = self.get_option_value(ports[0])
 
-		if check_port is None or check_protocol is None:
-			# If either port or protocol are not defined, signal that this check cannot complete.
-			return None
+			check_protocol = ports[1]
 
-		return get_listening_port(check_port, check_protocol) is not None
+			if get_listening_port(check_port, check_protocol) is None:
+				return False
+
+		# All ports are open
+		return True
 
 	def enable(self):
 		"""
@@ -676,15 +683,16 @@ class BaseService(ABC):
 		Each entry in the returned list should contain 3 items:
 
 		* Config name or integer of port (for non-definable ports)
-		* 'UDP' or 'TCP'
-		* Description of the port purpose
+		* 'UDP' or 'TCP' to indicate protocol
+		* Short description of the port purpose
+		* Optional boolean to indicate if this is an optional port (ie: not checked at startup)
 
 		Example:
 
 		```python
 		return [
-			['Game Port', 'UDP', 'Primary game port for clients to connect to'],
-			[25565, 'TCP', 'RCON port, statically assigned and cannot be changed']
+			['Game Port', 'UDP', 'Primary game port for clients to connect to', False],
+			[25565, 'TCP', 'RCON port, statically assigned and cannot be changed', True]
 		]
 		```
 
@@ -697,6 +705,17 @@ class BaseService(ABC):
 		Get the list of all ports used by this game, (at least that are registered)
 		and their status
 
+		Each port in the returned list is expected to contain the following properties:
+
+		* port - Port number
+		* protocol - UDP or TCP to indicate the port protocol
+		* description - Short description of the port function
+		* global - T/F if this port listens globally
+		* listening - T/F if this port is currently open (listening)
+		* owned - T/F if this port is owned by this process
+		* open - T/F if this port is currently open in the firewall to default
+		* option - Option name that controls this port setting, or None if static
+
 		:return:
 		"""
 		ret = []
@@ -706,8 +725,10 @@ class BaseService(ABC):
 		for port_def in self.get_port_definitions():
 			if isinstance(port_def[0], int):
 				port = port_def[0]
+				configuration = None
 			else:
 				port = self.get_option_value(port_def[0])
+				configuration = port_def[0]
 
 			protocol = port_def[1]
 			description = port_def[2]
@@ -732,6 +753,7 @@ class BaseService(ABC):
 				'listening': is_listening,
 				'owned': is_owned,
 				'open': is_open,
+				'option': configuration,
 			})
 
 		return ret
@@ -1500,3 +1522,64 @@ class BaseService(ABC):
 
 		# Cleanup
 		shutil.rmtree(temp_store)
+
+	def wipe(self):
+		"""
+		Wipe player data and reset the game back to default state
+		:return:
+		"""
+		base = self.get_save_directory()
+		for file in self.get_save_files():
+			file_path = os.path.join(base, file)
+			if os.path.isdir(file_path):
+				logging.info('Removing directory: %s' % file_path)
+				shutil.rmtree(file_path)
+			elif os.path.isfile(file_path):
+				logging.info('Removing file: %s' % file_path)
+				os.remove(file_path)
+			else:
+				logging.info('Skipping non-present file: %s' % file_path)
+
+	def get_mods(self) -> list:
+		"""
+		Get all mods that are available on this service
+
+		Each list is expected to contain the following properties:
+
+		* id - ID descriptor of this mod, either generated or assigned by the mod system
+		* name - Short name of the mod
+		* path - Path on the filesystem to this mod
+		* enabled - T/F if this mod is enabled for this game
+
+		:return:
+		"""
+		return []
+
+	def enable_mod(self, mod_id: str):
+		"""
+		Enable an installed mod in this game
+
+		:param mod_id:
+		:return:
+		"""
+		pass
+
+	def disable_mod(self, mod_id: str):
+		"""
+		Disable a mod from this game service, but do not uninstall it (if possible)
+
+		:param mod_id:
+		:return:
+		"""
+		pass
+
+	def remove_mod(self, mod_id: str):
+		"""
+		Remove a mod by its mod ID
+
+		Will completely uninstall the requested mod
+
+		:param mod_id:
+		:return:
+		"""
+		pass
