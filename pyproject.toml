@@ -45,6 +45,7 @@ dev = [
     "pytest>=9",
     "flake8>=7.3.0",
     "pre-commit>=4.5.1",
+    "pytest-cov>=7.0",
 ]
 
 [tool.setuptools.packages.find]
