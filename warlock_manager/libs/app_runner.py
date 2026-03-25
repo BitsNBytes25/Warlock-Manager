@@ -7,6 +7,7 @@ from typing import Annotated
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.services.base_service import BaseService
 from warlock_manager.libs.sensitive_data_filter import sensitive_data_filter
+from warlock_manager.libs.app import default_menu_main
 
 
 class ClassNameFilter(logging.Filter):
@@ -91,8 +92,9 @@ def app_runner(game: BaseApp):
 		)
 	]
 
-	@app.callback()
-	def main(
+	@app.callback(invoke_without_command=True)
+	def default(
+		ctx: typer.Context,
 		debug: arg_debug = False
 	):
 		log_level = logging.DEBUG if debug else logging.INFO
@@ -106,6 +108,15 @@ def app_runner(game: BaseApp):
 
 		if debug:
 			logging.debug('Debug logging enabled')
+
+		# If no subcommand was provided, call main()
+		if ctx.invoked_subcommand is None:
+			if 'main_menu' in globals() and callable(globals()['main_menu']):
+				# Allow the individual game to provide their own main menu
+				main_menu(game)  # noqa: F821
+			else:
+				# Fallback to the default main menu for general operations
+				default_menu_main(game)
 
 	@app.command()
 	def start(service: arg_service_optional = None):
@@ -386,6 +397,7 @@ def app_runner(game: BaseApp):
 				'cpu_usage': svc.get_cpu_usage(),
 				'game_pid': svc.get_game_pid(),
 				'service_pid': svc.get_pid(),
+				'ports': svc.get_ports(),
 			}
 			stats[svc.service] = svc.get_info() | svc_stats
 		print(json.dumps(stats))

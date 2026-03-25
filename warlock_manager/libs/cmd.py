@@ -2,6 +2,9 @@ import os
 import subprocess
 import json
 import logging
+import time
+
+from warlock_manager.libs import cache
 
 
 class CmdFakeResponse:
@@ -18,6 +21,8 @@ class Cmd:
 	"""
 	Simple subprocess wrapper to provide convenience methods for common interactions.
 	"""
+
+	_memory_cache = {}
 
 	def __init__(self, cmd: list):
 		"""
@@ -44,6 +49,20 @@ class Cmd:
 		str: Whether to use stdout or stderr for output ('stdout' or 'stderr')
 		Set to None to disable output capture and just check return code.
 		This means stdout and stderr will be streamed instead.
+		"""
+
+		self.cacheable: int | bool = False
+		"""
+		Set to a value > 0 if this command can be cached for N amount of seconds.
+
+		Commands that are cacheable are stored on the filesystem to allow for persistent cache between runs
+		"""
+
+		self.memory_cacheable: int | bool = False
+		"""
+		Set to a value > 0 if this command can be cached in memory for N amount of seconds.
+
+		These commands are NOT persistent across calls!
 		"""
 
 	def sudo(self, runas: str | int):
@@ -92,6 +111,22 @@ class Cmd:
 		:return:
 		"""
 		self.uses = None
+
+	def is_cacheable(self, expires: int = 3600):
+		"""
+		Set this command as cacheable for N seconds.
+		:param expires:
+		:return:
+		"""
+		self.cacheable = expires
+
+	def is_memory_cacheable(self, expires: int = 2):
+		"""
+		Set this command as cacheable in memory for N seconds.
+		:param expires:
+		:return:
+		"""
+		self.memory_cacheable = expires
 
 	@property
 	def exists(self) -> bool:
@@ -146,6 +181,17 @@ class Cmd:
 		"""
 		return self.run().returncode
 
+	def try_cache(self) -> str | None:
+		if self.cacheable is True:
+			# Convert cacheable to a default number of seconds
+			self.cacheable = 60 * 30
+
+		if self.uses is None:
+			# Not supported for streaming commands
+			return None
+
+		return cache.get_cache(' '.join(self.cmd), expires=self.cacheable)
+
 	def run(self):
 		"""
 		Run the command and capture the result. Caches the result so subsequent calls don't re-run the command.
@@ -153,9 +199,33 @@ class Cmd:
 		:return:
 		"""
 		if self.result is None:
+			logging.debug('Running command: %s' % ' '.join(self.cmd))
+			if self.memory_cacheable is not False:
+				key = ' '.join(self.cmd)
+				if key in self._memory_cache:
+					cached_time, cached = Cmd._memory_cache[key]
+					if cached_time + self.memory_cacheable >= time.time():
+						logging.debug('Using memory cached result instead')
+						self.result = CmdFakeResponse(
+							cached if self.uses == 'stdout' else '',
+							cached if self.uses == 'stderr' else '',
+							0
+						)
+						return self.result
+
+			if self.cacheable is not False:
+				cached = self.try_cache()
+				if cached is not None:
+					logging.debug('Using cached result instead')
+					self.result = CmdFakeResponse(
+						cached if self.uses == 'stdout' else '',
+						cached if self.uses == 'stderr' else '',
+						0
+					)
+					return self.result
+
 			try:
 				capture_output = self.uses is not None
-				logging.debug('Running command: %s' % ' '.join(self.cmd))
 				self.result = subprocess.run(
 					self.cmd,
 					capture_output=capture_output,
@@ -172,6 +242,26 @@ class Cmd:
 				if self.result.stderr:
 					logging.debug('STDERR: %s' % self.result.stderr.strip())
 				logging.debug('Return code: %d' % self.result.returncode)
+
+		if self.result.returncode == 0:
+			# Check to see if this result should be cached on either the filesystem and/or memory
+			if self.memory_cacheable is not False:
+				key = ' '.join(self.cmd)
+				if self.uses == 'stdout':
+					Cmd._memory_cache[key] = (time.time(), self.result.stdout)
+				elif self.uses == 'stderr':
+					Cmd._memory_cache[key] = (time.time(), self.result.stderr)
+				else:
+					logging.warning('Attempting to cache command output without capturing it. This is not supported!')
+
+			if self.cacheable is not False:
+				# Do we save stdout or stderr?
+				if self.uses == 'stdout':
+					cache.save_cache(' '.join(self.cmd), self.result.stdout)
+				elif self.uses == 'stderr':
+					cache.save_cache(' '.join(self.cmd), self.result.stderr)
+				else:
+					logging.warning('Attempting to cache command output without capturing it. This is not supported!')
 
 		return self.result
 
@@ -204,6 +294,10 @@ class BackgroundCmd(Cmd):
 		:return:
 		"""
 		if self.result is None:
+
+			if self.cacheable is not False:
+				logging.warning('Background commands cannot be cached!')
+
 			try:
 				self.result = subprocess.Popen(
 					self.cmd,

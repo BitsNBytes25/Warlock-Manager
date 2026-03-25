@@ -12,6 +12,9 @@ from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.libs.get_wan_ip import get_wan_ip
 from warlock_manager.libs.tui import prompt_yn, prompt_text
 from warlock_manager.libs.cmd import Cmd, BackgroundCmd
+from warlock_manager.libs.ports import get_listening_port
+from warlock_manager.libs.firewall import Firewall
+from warlock_manager.libs import utils
 
 
 class BaseService(ABC):
@@ -41,7 +44,7 @@ class BaseService(ABC):
 		used for checking existence and loading configuration options from the file
 		"""
 
-		self._env_file = os.path.join(game.get_app_directory(), 'Environments', '%s.env' % service)
+		self._env_file = os.path.join(utils.get_app_directory(), 'Environments', '%s.env' % service)
 		"""
 		:type str:
 		Fully resolved path on the filesystem for the environmental variable for this service
@@ -265,6 +268,16 @@ class BaseService(ABC):
 		"""
 		return None
 
+	def get_port_protocol(self) -> str | None:
+		"""
+		Get if the primary port of this service is UDP or TCP.
+
+		(Most games use UDP, but override this to change it)
+
+		:return:
+		"""
+		return 'UDP'
+
 	def prompt_option(self, option: str):
 		"""
 		Prompt the user to set a configuration option for the service
@@ -321,7 +334,9 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		pid = Cmd(['systemctl', 'show', '-p', 'MainPID', self.service]).text[8:]
+		check = Cmd(['systemctl', 'show', '-p', 'MainPID', self.service])
+		check.is_memory_cacheable(3)
+		pid = check.text[8:]
 		return int(pid)
 
 	def get_process_status(self) -> int:
@@ -527,7 +542,9 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		return Cmd(['systemctl', 'is-active', self.service]).text
+		check = Cmd(['systemctl', 'is-active', self.service])
+		check.is_memory_cacheable(3)
+		return check.text
 
 	def is_enabled(self) -> bool:
 		"""
@@ -567,7 +584,8 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		return self._is_active() == 'inactive'
+		status = self._is_active()
+		return status == 'inactive' or status == 'failed'
 
 	def is_api_enabled(self) -> bool:
 		"""
@@ -576,6 +594,30 @@ class BaseService(ABC):
 		:return:
 		"""
 		return False
+
+	def is_port_open(self) -> bool:
+		"""
+		Check if all required ports for this game are open
+
+		:return:
+		"""
+		for ports in self.get_port_definitions():
+			if len(ports) >= 4:
+				# Check if this port is optional; if so we don't care about it.
+				if ports[3]:
+					continue
+			if isinstance(ports[0], int):
+				check_port = ports[0]
+			else:
+				check_port = self.get_option_value(ports[0])
+
+			check_protocol = ports[1]
+
+			if get_listening_port(check_port, check_protocol) is None:
+				return False
+
+		# All ports are open
+		return True
 
 	def enable(self):
 		"""
@@ -642,21 +684,80 @@ class BaseService(ABC):
 		Each entry in the returned list should contain 3 items:
 
 		* Config name or integer of port (for non-definable ports)
-		* 'UDP' or 'TCP'
-		* Description of the port purpose
+		* 'UDP' or 'TCP' to indicate protocol
+		* Short description of the port purpose
+		* Optional boolean to indicate if this is an optional port (ie: not checked at startup)
 
 		Example:
 
 		```python
 		return [
-			['Game Port', 'UDP', 'Primary game port for clients to connect to'],
-			[25565, 'TCP', 'RCON port, statically assigned and cannot be changed']
+			['Game Port', 'UDP', 'Primary game port for clients to connect to', False],
+			[25565, 'TCP', 'RCON port, statically assigned and cannot be changed', True]
 		]
 		```
 
 		:return:
 		"""
 		...
+
+	def get_ports(self) -> list:
+		"""
+		Get the list of all ports used by this game, (at least that are registered)
+		and their status
+
+		Each port in the returned list is expected to contain the following properties:
+
+		* port - Port number
+		* protocol - UDP or TCP to indicate the port protocol
+		* description - Short description of the port function
+		* global - T/F if this port listens globally
+		* listening - T/F if this port is currently open (listening)
+		* owned - T/F if this port is owned by this process
+		* open - T/F if this port is currently open in the firewall to default
+		* option - Option name that controls this port setting, or None if static
+
+		:return:
+		"""
+		ret = []
+		game_pid = self.get_game_pid()
+		pid = self.get_pid()
+
+		for port_def in self.get_port_definitions():
+			if isinstance(port_def[0], int):
+				port = port_def[0]
+				configuration = None
+			else:
+				port = self.get_option_value(port_def[0])
+				configuration = port_def[0]
+
+			protocol = port_def[1]
+			description = port_def[2]
+
+			listening_status = get_listening_port(port, protocol)
+			if listening_status is not None:
+				is_global = listening_status['ip'] != '127.0.0.1'
+				is_listening = True
+				is_owned = listening_status['pid'] in (game_pid, pid)
+				is_open = Firewall.is_global_open(port, protocol)
+			else:
+				is_global = False
+				is_listening = False
+				is_owned = False
+				is_open = Firewall.is_global_open(port, protocol)
+
+			ret.append({
+				'port': port,
+				'protocol': protocol,
+				'description': description,
+				'global': is_global,
+				'listening': is_listening,
+				'owned': is_owned,
+				'open': is_open,
+				'option': configuration,
+			})
+
+		return ret
 
 	def start(self):
 		"""
@@ -729,59 +830,77 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		if self.is_api_enabled():
-			logging.info('Waiting for API to become available for start confirmation...')
-			start_timer = time.time()
+		logging.info('Waiting for game to become available for start confirmation...')
+		start_timer = time.time()
+		seconds_elapsed = round(time.time() - start_timer)
+		ready = False
+		socket_ready = False
+		max_wait = 300
+		max_wait_minutes = str(max_wait // 60)
+		max_wait_seconds = max_wait % 60
+		if max_wait_seconds < 10:
+			max_wait_seconds = '0' + str(max_wait_seconds)
+		else:
+			max_wait_seconds = str(max_wait_seconds)
+
+		while not ready and seconds_elapsed < max_wait:
 			seconds_elapsed = round(time.time() - start_timer)
-			ready = False
-			max_wait = 300
-			max_wait_minutes = str(max_wait // 60)
-			max_wait_seconds = max_wait % 60
-			if max_wait_seconds < 10:
-				max_wait_seconds = '0' + str(max_wait_seconds)
+			since_minutes = str(seconds_elapsed // 60)
+			since_seconds = seconds_elapsed % 60
+			if since_seconds < 10:
+				since_seconds = '0' + str(since_seconds)
 			else:
-				max_wait_seconds = str(max_wait_seconds)
+				since_seconds = str(since_seconds)
 
-			while not ready and seconds_elapsed < max_wait:
-				time.sleep(15)
-				pid = self.get_pid()
-				exec_status = self.get_process_status()
+			logging.info(
+				'Waiting (%s:%s / %s:%s max wait)' %
+				(since_minutes, since_seconds, max_wait_minutes, max_wait_seconds)
+			)
+			time.sleep(15)
 
-				if exec_status != 0:
-					logging.error('Game crashed during startup!')
-					return False
+			# Base checks; the process should still be running
+			if self.get_process_status() != 0:
+				logging.error('Game crashed during startup!')
+				return False
 
-				if pid == 0:
-					logging.error('Game failed to start or no PID found.')
-					return False
+			if self.get_pid() == 0:
+				logging.error('Game failed to start or no PID found.')
+				return False
 
-				seconds_elapsed = round(time.time() - start_timer)
-				since_minutes = str(seconds_elapsed // 60)
-				since_seconds = seconds_elapsed % 60
-				if since_seconds < 10:
-					since_seconds = '0' + str(since_seconds)
+			if not socket_ready:
+				# Pull the socket information to know if the game is running yet
+				# If it's None, that means this information won't be available and we can skip the check.
+				port_open = self.is_port_open()
+				if port_open is None:
+					logging.info('Unable to determine if port is open, skipping check.')
+					socket_ready = True
+				elif port_open is True:
+					socket_ready = True
+					logging.info('Game port is open, continuing to API check')
 				else:
-					since_seconds = str(since_seconds)
+					logging.info('Game port is closed, waiting for it to open.')
+					continue
 
+			if self.is_api_enabled():
 				players = self.get_player_count()
 				if players is not None:
+					logging.info('API connected!')
 					ready = True
-				else:
-					logging.info(
-						'Still waiting (%s:%s / %s:%s max wait)' %
-						(since_minutes, since_seconds, max_wait_minutes, max_wait_seconds)
-					)
-
-			if ready:
-				msg = self.game.get_option_value('Instance Started (Discord)')
-				if msg != '':
-					if '{instance}' in msg:
-						msg = msg.replace('{instance}', self.get_name())
-					self.game.send_discord_message(msg)
 			else:
-				logging.warning('API did not respond within the allowed time!')
+				logging.info('API is not available, skipping start confirmation.')
+				ready = True
+
+		if ready:
+			# Perform all operations required for a successful, confirmed startup
+			msg = self.game.get_option_value('Instance Started (Discord)')
+			if msg != '':
+				if '{instance}' in msg:
+					msg = msg.replace('{instance}', self.get_name())
+				self.game.send_discord_message(msg)
 		else:
-			logging.info('API is not available, skipping start confirmation.')
+			# Checks failed to complete within allowed time.
+			# This does not mean the game didn't start, it just didn't start _within allocated time_.
+			logging.warning('API did not respond within the allowed time!')
 
 		return True
 
@@ -993,8 +1112,8 @@ class BaseService(ABC):
 		config['Unit']['After'] = 'network.target'
 		config['Service']['Type'] = 'simple'
 		config['Service']['LimitNOFILE'] = '1000000'
-		config['Service']['User'] = str(self.game.get_app_uid())
-		config['Service']['Group'] = str(self.game.get_app_gid())
+		config['Service']['User'] = str(utils.get_app_uid())
+		config['Service']['Group'] = str(utils.get_app_gid())
 		config['Service']['WorkingDirectory'] = working_directory
 		config['Service']['EnvironmentFile'] = self._env_file
 		config['Service']['ExecStart'] = self.get_executable()
@@ -1020,6 +1139,17 @@ class BaseService(ABC):
 			base = os.path.join(base, self.service)
 
 		return base
+
+	def get_save_directory(self) -> str:
+		"""
+		Get the parent directory that contains the Save files for this game
+
+		By default this is just the app directory (AppFiles or AppFiles/{servicename}),
+		but this can be changed if the game saves files outside this directory.
+
+		:return:
+		"""
+		return self.get_app_directory()
 
 	def get_backup_directory(self) -> str:
 		"""
@@ -1202,7 +1332,7 @@ class BaseService(ABC):
 		"""
 		base = self.game.get_app_directory()
 		temp_store = os.path.join(base, '.save-%s' % self.service)
-		save_source = self.get_app_directory()
+		save_source = self.get_save_directory()
 		save_files = self.get_save_files()
 
 		# Temporary directories for various file sources
@@ -1340,7 +1470,7 @@ class BaseService(ABC):
 
 		base = self.game.get_app_directory()
 		temp_store = os.path.join(base, '.restore-%s' % self.service)
-		save_dest = self.get_app_directory()
+		save_dest = self.get_save_directory()
 
 		os.makedirs(temp_store, exist_ok=True)
 
@@ -1393,3 +1523,64 @@ class BaseService(ABC):
 
 		# Cleanup
 		shutil.rmtree(temp_store)
+
+	def wipe(self):
+		"""
+		Wipe player data and reset the game back to default state
+		:return:
+		"""
+		base = self.get_save_directory()
+		for file in self.get_save_files():
+			file_path = os.path.join(base, file)
+			if os.path.isdir(file_path):
+				logging.info('Removing directory: %s' % file_path)
+				shutil.rmtree(file_path)
+			elif os.path.isfile(file_path):
+				logging.info('Removing file: %s' % file_path)
+				os.remove(file_path)
+			else:
+				logging.info('Skipping non-present file: %s' % file_path)
+
+	def get_mods(self) -> list:
+		"""
+		Get all mods that are available on this service
+
+		Each list is expected to contain the following properties:
+
+		* id - ID descriptor of this mod, either generated or assigned by the mod system
+		* name - Short name of the mod
+		* path - Path on the filesystem to this mod
+		* enabled - T/F if this mod is enabled for this game
+
+		:return:
+		"""
+		return []
+
+	def enable_mod(self, mod_id: str):
+		"""
+		Enable an installed mod in this game
+
+		:param mod_id:
+		:return:
+		"""
+		pass
+
+	def disable_mod(self, mod_id: str):
+		"""
+		Disable a mod from this game service, but do not uninstall it (if possible)
+
+		:param mod_id:
+		:return:
+		"""
+		pass
+
+	def remove_mod(self, mod_id: str):
+		"""
+		Remove a mod by its mod ID
+
+		Will completely uninstall the requested mod
+
+		:param mod_id:
+		:return:
+		"""
+		pass

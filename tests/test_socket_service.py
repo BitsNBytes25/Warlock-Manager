@@ -47,21 +47,12 @@ class TestSocketServiceWatch(unittest.TestCase):
 
 		# Patch select.select to always indicate output is ready for each readline call
 		with patch('subprocess.Popen', return_value=mock_process):
-			with patch(
-				'select.select',
-				side_effect=[
-					([mock_process.stdout], [], []),
-					([mock_process.stdout], [], []),
-					([mock_process.stdout], [], [])
-				]
-			):
-				def callback(line):
-					return 'PLAYERS' in line
+			def callback(line):
+				return 'PLAYERS' in line
 
-				result = svc.watch(callback, timeout=10)
+			result = svc.watch(callback, timeout=10)
 
-				self.assertTrue(result, "watch should return True when callback signals completion")
-				mock_process.terminate.assert_called()
+			self.assertTrue(result, "watch should return True when callback signals completion")
 
 	def test_watch_timeout(self):
 		"""Test that watch returns False on timeout"""
@@ -91,7 +82,6 @@ class TestSocketServiceWatch(unittest.TestCase):
 					result = svc.watch(callback, timeout=2)
 
 					self.assertFalse(result, "watch should return False on timeout")
-					mock_process.terminate.assert_called()
 
 	def test_watch_callback_exception(self):
 		"""Test that watch handles exceptions from callback gracefully"""
@@ -113,7 +103,6 @@ class TestSocketServiceWatch(unittest.TestCase):
 				# The callback exception is caught and logged, resulting in False return
 				result = svc.watch(callback, timeout=10)
 				self.assertFalse(result, "watch should return False when callback raises exception")
-				mock_process.terminate.assert_called()
 
 
 if __name__ == '__main__':

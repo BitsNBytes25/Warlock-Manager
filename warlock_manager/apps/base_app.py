@@ -1,19 +1,21 @@
 import json
 import logging
 import os
-import pwd
 import shutil
-import sys
 import time
 from abc import ABC
 from urllib import request
 from urllib import error as urllib_error
 from typing import TYPE_CHECKING, Optional
 
+from typing_extensions import deprecated
+
 if TYPE_CHECKING:
 	from warlock_manager.services.base_service import BaseService
 
 from warlock_manager.libs.tui import prompt_yn, prompt_text
+from warlock_manager.libs import utils
+from warlock_manager.libs.ports import get_ports
 
 
 class BaseApp(ABC):
@@ -80,6 +82,7 @@ class BaseApp(ABC):
 			'api',  # Game supports baseline API features
 			'cmd',  # Game supports commands sent via the API
 			'create_service',  # Game supports creating new services
+			'mods',  # Game supports mods
 		}
 		"""
 		List of features available in this game
@@ -496,7 +499,8 @@ class BaseApp(ABC):
 
 		protocol = protocol.lower()
 
-		used_ports = set()
+		# Preseed the list of used ports with the ports currently in use by the system
+		used_ports = get_ports(protocol)
 		candidate_services = [service] + self.get_services()
 		for svc in candidate_services:
 			port_defs = svc.get_port_definitions()
@@ -550,6 +554,7 @@ class BaseApp(ABC):
 		except urllib_error.HTTPError as e:
 			print('Could not notify Discord: %s' % e)
 
+	@deprecated("Please use get_app_directory() from utils instead.")
 	def get_app_directory(self) -> str:
 		"""
 		Get the base directory for this game installation.
@@ -558,15 +563,16 @@ class BaseApp(ABC):
 
 		:return:
 		"""
-		return os.path.dirname(os.path.realpath(sys.argv[0]))
+		return utils.get_app_directory()
 
+	@deprecated("Please use get_home_directory() from utils instead")
 	def get_home_directory(self) -> str:
 		"""
 		Get the home directory of the user running this application
 
 		:return:
 		"""
-		return pwd.getpwuid(self.get_app_uid()).pw_dir
+		return utils.get_home_directory()
 
 	def create_service(self, service_name: str) -> 'BaseService':
 		"""
@@ -635,8 +641,8 @@ class BaseApp(ABC):
 				logging.info('Removed config file for %s at %s' % (self.name, config.path))
 
 		# Cleanup directory structure
-		shutil.rmtree(os.path.join(self.get_app_directory(), 'AppFiles'))
-		shutil.rmtree(os.path.join(self.get_app_directory(), 'Environments'))
+		shutil.rmtree(os.path.join(utils.get_app_directory(), 'AppFiles'))
+		shutil.rmtree(os.path.join(utils.get_app_directory(), 'Environments'))
 
 	def remove_service(self, service_name: str):
 		"""
@@ -661,7 +667,7 @@ class BaseApp(ABC):
 		Try to detect available services for this game.
 		:return:
 		"""
-		envs = os.path.join(self.get_app_directory(), 'Environments')
+		envs = os.path.join(utils.get_app_directory(), 'Environments')
 		if os.path.exists(envs):
 			# Each service should have a file here, named as {service}.env
 			services = []
@@ -672,41 +678,21 @@ class BaseApp(ABC):
 			return services
 		return []
 
+	@deprecated("Please use get_app_uid() from utils instead")
 	def get_app_uid(self) -> int:
 		"""
 		Get the user ID that should own the game files, based on the ownership of the executable directory
 		:return:
 		"""
+		return utils.get_app_uid()
 
-		# Pull the user id and group id based off the ownership of 'AppFiles' in the executable directory
-		# If the directory does not exist, (normal for new installations), keep going up until we find one
-		check_dir = self.get_app_directory()
-		while not os.path.exists(check_dir):
-			check_dir = os.path.dirname(check_dir)
-			if check_dir == '/' or check_dir == '':
-				# Reached the root directory without finding an existing directory, default to current user and group
-				return os.geteuid()
-		else:
-			stat_info = os.stat(check_dir)
-			return stat_info.st_uid
-
+	@deprecated("Please use get_app_gid() from utils instead")
 	def get_app_gid(self) -> int:
 		"""
 		Get the group ID that should own the game files, based on the ownership of the executable directory
 		:return:
 		"""
-
-		# Pull the user id and group id based off the ownership of 'AppFiles' in the executable directory
-		# If the directory does not exist, (normal for new installations), keep going up until we find one
-		check_dir = self.get_app_directory()
-		while not os.path.exists(check_dir):
-			check_dir = os.path.dirname(check_dir)
-			if check_dir == '/' or check_dir == '':
-				# Reached the root directory without finding an existing directory, default to current user and group
-				return os.getegid()
-		else:
-			stat_info = os.stat(check_dir)
-			return stat_info.st_gid
+		return utils.get_app_gid()
 
 	def first_run(self) -> bool:
 		"""
@@ -716,32 +702,22 @@ class BaseApp(ABC):
 		"""
 
 		# Ensure some baseline directories exist with the correct ownership and permissions
-		self.makedirs(os.path.join(self.get_app_directory(), 'Backups'))
-		self.makedirs(os.path.join(self.get_app_directory(), 'AppFiles'))
-		self.makedirs(os.path.join(self.get_app_directory(), 'Environments'))
+		utils.makedirs(os.path.join(utils.get_app_directory(), 'Backups'))
+		utils.makedirs(os.path.join(utils.get_app_directory(), 'AppFiles'))
+		utils.makedirs(os.path.join(utils.get_app_directory(), 'Environments'))
 
 		return True
 
+	@deprecated("Please use ensure_file_ownership() from utils instead")
 	def ensure_file_ownership(self, file: str):
 		"""
 		Try to set the ownership of the given file to match the ownership of the game installation directory.
 		:param file:
 		:return:
 		"""
-		if os.geteuid() == 0:
-			# If running as root, chown the environment file to the game user
-			uid = self.get_app_uid()
-			gid = self.get_app_gid()
+		return utils.ensure_file_ownership(file)
 
-			logging.debug('Ensuring ownership of %s to %s:%s' % (file, uid, gid))
-			os.chown(file, uid, gid)
-			if os.path.isdir(file):
-				for root, dirs, files in os.walk(file):
-					for momo in dirs:
-						os.chown(os.path.join(root, momo), uid, gid)
-					for momo in files:
-						os.chown(os.path.join(root, momo), uid, gid)
-
+	@deprecated("Please use ensure_file_parent_exists() from utils instead")
 	def ensure_file_parent_exists(self, file: str):
 		"""
 		A replacement of os.makedirs, but also sets permissions as it creates the directories.
@@ -752,8 +728,9 @@ class BaseApp(ABC):
 		:param file:
 		:return:
 		"""
-		return self.makedirs(os.path.dirname(file))
+		return utils.ensure_file_parent_exists(file)
 
+	@deprecated("Please use makedirs() from utils instead")
 	def makedirs(self, target_dir: str):
 		"""
 		A replacement of os.makedirs, but also sets permissions as it creates the directories.
@@ -761,26 +738,4 @@ class BaseApp(ABC):
 		:param target_dir:
 		:return:
 		"""
-		if os.path.exists(target_dir):
-			# Parent directory exists, nothing to do
-			return
-
-		# Ensure the directory exists within the context of either this game or the game owner's home directory
-		if not (target_dir.startswith(self.get_app_directory()) or target_dir.startswith(self.get_home_directory())):
-			raise Exception('Cannot create directory outside of game directory: %s' % target_dir)
-
-		# Iterate up until the parent directory exists.
-		# This will determine where we need to send file_ownership to.
-		# This is done so we don't have to chown the entire game directory.
-		test_dir = target_dir
-		# Last child will be the last directory that did not exist; we'll issue the chown there.
-		last_child = target_dir
-		while test_dir != '/' and test_dir != '':
-			test_dir = os.path.dirname(test_dir)
-			if not os.path.exists(test_dir):
-				last_child = test_dir
-			else:
-				break
-
-		os.makedirs(target_dir, exist_ok=True)
-		self.ensure_file_ownership(last_child)
+		return utils.makedirs(target_dir)

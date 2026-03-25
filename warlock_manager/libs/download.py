@@ -1,17 +1,11 @@
 import logging
-
 import requests
-import hashlib
-import time
-import os
 import json
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from warlock_manager.apps.base_app import BaseApp
+from warlock_manager.libs import utils
+from warlock_manager.libs import cache
 
 
-def download_file(game: 'BaseApp', url: str, destination: str):
+def download_file(url: str, destination: str):
     """
     Download a file from a URL to a destination path.
 
@@ -22,9 +16,7 @@ def download_file(game: 'BaseApp', url: str, destination: str):
     """
     logging.debug('Downloading file %s to %s' % (url, destination))
     # Ensure the target directory exists
-    if not os.path.exists(os.path.dirname(destination)):
-        os.makedirs(os.path.dirname(destination), exist_ok=True)
-        game.ensure_file_ownership(os.path.dirname(destination))
+    utils.ensure_file_parent_exists(destination)
 
     response = requests.get(url, stream=True)
     response.raise_for_status()  # Check if the request was successful
@@ -34,10 +26,10 @@ def download_file(game: 'BaseApp', url: str, destination: str):
             f.write(chunk)
 
     # Once complete, set ownership for the downloaded file
-    game.ensure_file_ownership(destination)
+    utils.ensure_file_ownership(destination)
 
 
-def download_json(game: 'BaseApp', url: str) -> dict:
+def download_json(url: str) -> dict:
     """
     Download JSON data from a URL and return it as a dictionary.
 
@@ -48,29 +40,16 @@ def download_json(game: 'BaseApp', url: str) -> dict:
     :param url: The URL to download from
     :return: The JSON data as a dictionary
     """
-    # Ensure cache directory exists
-    cache_path = os.path.join(game.get_app_directory(), '.cache')
-    if not os.path.exists(cache_path):
-        os.makedirs(cache_path)
-        game.ensure_file_ownership(cache_path)
+    logging.debug('Downloading JSON %s' % url)
 
-    # Check cache prior to downloading.
-    url_hash = hashlib.sha256(url.encode()).hexdigest()
-    cache_path = os.path.join(game.get_app_directory(), '.cache', url_hash)
-    if os.path.exists(cache_path):
-        # For large files, extend the cache further
-        if os.path.getsize(cache_path) > 10000000:
-            cache_duration = 24 * 3600  # 24 hours for large files
-        else:
-            cache_duration = 3600  # 1 hour for smaller files
-        if time.time() - os.path.getmtime(cache_path) < cache_duration:
-            with open(cache_path, "r") as f:
-                return json.load(f)
+    # Try the cache first
+    cached = cache.get_cache(url)
+    if cached is not None:
+        return json.loads(cached)
 
     response = requests.get(url)
     response.raise_for_status()  # Check if the request was successful
     data = response.json()
-    with open(cache_path, "w") as f:
-        json.dump(data, f)
-    game.ensure_file_ownership(cache_path)
+
+    cache.save_cache(url, json.dumps(data))
     return data
