@@ -6,7 +6,7 @@ from typing import Union
 import logging
 
 
-def print_header(title: str, width: int = 80, clear: bool = False) -> None:
+def print_header(title: str, width: int = 80, clear: bool = False, subtitle: str = '') -> None:
 	"""
 	Prints a formatted header with a title and optional subtitle.
 
@@ -21,13 +21,19 @@ def print_header(title: str, width: int = 80, clear: bool = False) -> None:
 	else:
 		# Just print some newlines
 		print("\n" * 3)
-	border = "=" * width
-	print(border)
-	print(title.center(width))
-	print(border)
+	border = "─" * (width - 2)
+	space = ' ' * (width - 2)
+	print(f'┌{border}┐')
+	print(f'│{title.center(width - 2)}│')
+	if subtitle:
+		print(f'│{space}│')
+		for line in subtitle.split('\n'):
+			print(f'│{line.center(width - 2)}│')
+	print(f'└{border}┘')
 
 
 def print_subheader(text: str):
+	print('')
 	print(f'== {text}')
 	print('')
 
