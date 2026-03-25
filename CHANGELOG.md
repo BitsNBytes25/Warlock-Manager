@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.0.3] - 2026-03-25
+
+### Changed
+
+- Backport deployment to PyPI
+- Backport install_warlock_manager to use PyPI if a version number is specified instead of a branch name
+
+
 ## [2.1.0] - 2026-03-25
 
 ### Added
