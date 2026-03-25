@@ -8,7 +8,7 @@ version = "2.1.0"
 description = "Dependency library for game-server management applications."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "AGPL-3.0-or-later" }
+license = "AGPL-3.0-or-later"
 authors = [
     { name = "Charlie Powell", email = "cdp1337@bitsnbytes.dev" }
 ]
@@ -29,7 +29,6 @@ dependencies = [
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
