@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Update install_warlock_manager to use PyPI if a version number is specified instead of a branch name
+
 ### Changed
+
+- Use testPyPi only on pushes to release-* branches
 
 ### Deprecated
 

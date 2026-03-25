@@ -2,7 +2,7 @@ name: Publish to TestPyPI
 
 on:
   push:
-    branches: [main, 'dev-*']
+    branches: ['release-*']
     paths:
       - 'pyproject.toml'
       - 'warlock_manager/**'
