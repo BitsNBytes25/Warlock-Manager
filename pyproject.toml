@@ -15,8 +15,6 @@ authors = [
 maintainers = [
     { name = "Charlie Powell", email = "cdp1337@bitsnbytes.dev" }
 ]
-homepage = "https://warlock.nexus"
-repository = "https://github.com/BitsNBytes25/Warlock-Manager"
 keywords = ["game-server", "management"]
 dependencies = [
     "requests>=2.28",
@@ -55,3 +53,5 @@ include = ["warlock_manager*"]
 
 [project.urls]
 "Bug Tracker" = "https://github.com/BitsNBytes25/Warlock-Manager/issues"
+"Homepage" = "https://warlock.nexus"
+"Repository" = "https://github.com/BitsNBytes25/Warlock-Manager"
