@@ -14,6 +14,7 @@ from warlock_manager.libs.tui import prompt_yn, prompt_text
 from warlock_manager.libs.cmd import Cmd, BackgroundCmd
 from warlock_manager.libs.ports import get_listening_port
 from warlock_manager.libs.firewall import Firewall
+from warlock_manager.libs import utils
 
 
 class BaseService(ABC):
@@ -43,7 +44,7 @@ class BaseService(ABC):
 		used for checking existence and loading configuration options from the file
 		"""
 
-		self._env_file = os.path.join(game.get_app_directory(), 'Environments', '%s.env' % service)
+		self._env_file = os.path.join(utils.get_app_directory(), 'Environments', '%s.env' % service)
 		"""
 		:type str:
 		Fully resolved path on the filesystem for the environmental variable for this service
@@ -1111,8 +1112,8 @@ class BaseService(ABC):
 		config['Unit']['After'] = 'network.target'
 		config['Service']['Type'] = 'simple'
 		config['Service']['LimitNOFILE'] = '1000000'
-		config['Service']['User'] = str(self.game.get_app_uid())
-		config['Service']['Group'] = str(self.game.get_app_gid())
+		config['Service']['User'] = str(utils.get_app_uid())
+		config['Service']['Group'] = str(utils.get_app_gid())
 		config['Service']['WorkingDirectory'] = working_directory
 		config['Service']['EnvironmentFile'] = self._env_file
 		config['Service']['ExecStart'] = self.get_executable()

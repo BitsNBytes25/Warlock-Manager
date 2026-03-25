@@ -5,6 +5,7 @@ import unittest
 
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.services.base_service import BaseService
+from warlock_manager.libs import utils
 
 here = os.path.dirname(os.path.realpath(__file__))
 
@@ -60,4 +61,4 @@ class TestBaseService(unittest.TestCase):
 			self.assertIn('Type=simple', data_new)
 			self.assertIn('ExecStart=%s' % svc.get_executable(), data_new)
 			self.assertIn('WorkingDirectory=%s' % svc.get_app_directory(), data_new)
-			self.assertIn('EnvironmentFile=%s/Environments/%s.env' % (app.get_app_directory(), svc.service), data_new)
+			self.assertIn('EnvironmentFile=%s/Environments/%s.env' % (utils.get_app_directory(), svc.service), data_new)

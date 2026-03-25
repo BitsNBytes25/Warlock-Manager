@@ -144,11 +144,11 @@ class TestVersionExtraction(unittest.TestCase):
 	def test_extract_java_version(self):
 		result = extract_version_from_string('openjdk version "21.0.10" 2026-01-20 LTS')
 		self.assertIsNotNone(result)
-		self.assertEquals("21.0.10", result)
+		self.assertEqual("21.0.10", result)
 
 		result = extract_version_from_string('openjdk version "1.8.0_482"')
 		self.assertIsNotNone(result)
-		self.assertEquals("1.8.0", result)
+		self.assertEqual("1.8.0", result)
 
 
 class TestVersionNormalization(unittest.TestCase):
