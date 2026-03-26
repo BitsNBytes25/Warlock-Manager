@@ -8,6 +8,7 @@ from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.services.base_service import BaseService
 from warlock_manager.libs.sensitive_data_filter import sensitive_data_filter
 from warlock_manager.libs.app import default_menu_main
+from warlock_manager.libs.meta import get_meta
 
 
 class ClassNameFilter(logging.Filter):
@@ -27,7 +28,20 @@ class ClassNameFilter(logging.Filter):
 
 
 def app_runner(game: BaseApp):
-	app = typer.Typer()
+	meta = get_meta()
+
+	help_lines = [
+		'Command-line API and TUI for interacting with this game and its services',
+		'Warlock Manager: %s' % meta['version'],
+	]
+	if meta['branch']:
+		help_lines.append('Branch: %s' % meta['branch'])
+	if meta['commit']:
+		help_lines.append('Commit: %s' % meta['commit'])
+	if meta['url']:
+		help_lines.append('Project URL: %s' % meta['url'])
+
+	app = typer.Typer(help='\n\n'.join(help_lines))
 
 	features = game.features - game.disabled_features
 
