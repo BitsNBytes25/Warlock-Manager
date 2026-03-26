@@ -5,15 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
 ## [Unreleased]
 
 ### Added
 
-- Update install_warlock_manager to use PyPI if a version number is specified instead of a branch name
-
 ### Changed
-
-- Use testPyPi only on pushes to release-* branches
 
 ### Deprecated
 
@@ -22,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 ### Security
+
+
+## [2.1.1] - 2026-03-25
+
+### Added
+
+- Update install_warlock_manager to use PyPI if a version number is specified instead of a branch name
+- Add version tracking by logging the commit hash during installation
+
+### Changed
+
+- Use testPyPi only on pushes to release-* branches
+
+
+## [2.0.4] - 2026-03-25
+
+### Added
+
+- Backport version tracking by logging the commit hash during installation
 
 
 ## [2.0.3] - 2026-03-25

@@ -1,8 +1,8 @@
 import logging
 import os
 import sys
-from importlib.metadata import version, PackageNotFoundError
 
+from warlock_manager.libs.meta import get_meta
 from warlock_manager.libs.get_wan_ip import get_wan_ip
 from warlock_manager.libs.tui import print_header, Table, print_subheader, prompt_yn, prompt_text, prompt_options
 from warlock_manager.apps.base_app import BaseApp
@@ -19,11 +19,6 @@ ICON_GLOBE = '🌐'
 ICON_LOCKED = '🔒'
 ESCAPE_STRIKE = '\u001b[9m'
 ESCAPE_RESET = '\u001b[0m'
-
-try:
-	pkg_version = version("warlock_manager")
-except PackageNotFoundError:
-	pkg_version = "unknown"
 
 
 def stringify_value(key, service: BaseService):
@@ -410,13 +405,21 @@ def menu_service(service: BaseService):
 
 def default_menu_main(game: BaseApp):
 	features = game.features - game.disabled_features
+	meta = get_meta()
+	subtitles = []
+
+	if meta['url']:
+		subtitles.append(meta['url'] + '\n')
+
+	subtitles.append('Built with the Warlock Manager v%s' % meta['version'])
+	subtitles.append('https://warlock.nexus')
 
 	while True:
 		running = game.is_active()
 		services = game.get_services()
 		print_header(
 			'Welcome to the %s Server Manager' % game.desc,
-			subtitle=f'Built with the Warlock Manager v{pkg_version}\nhttps://warlock.nexus'
+			subtitle='\n'.join(subtitles)
 		)
 		table = Table(['#', 'Service', 'Name', 'Port', 'Auto-Start', 'Status', 'CPU', 'Mem', 'Players'])
 		table.align = ['r', 'l', 'l', 'r', 'l', 'l', 'r', 'r', 'l']
