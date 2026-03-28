@@ -1554,22 +1554,22 @@ class BaseService(ABC):
 		"""
 		return []
 
-	def add_mod(self, mod_lookup: str) -> bool:
+	def add_mod(self, mod: 'BaseMod') -> bool:
 		"""
-		Install a mod from a mod lookup string
+		Install a mod
 
-		:param mod_lookup:
+		:param mod:
 		:return:
 		"""
 		return False
 
-	def remove_mod(self, mod_id: str) -> bool:
+	def remove_mod(self, mod: 'BaseMod') -> bool:
 		"""
-		Remove a mod by its mod ID
+		Remove a mod
 
 		Will completely uninstall the requested mod
 
-		:param mod_id:
+		:param mod:
 		:return:
 		"""
 		return False

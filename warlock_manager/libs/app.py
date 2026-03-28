@@ -211,10 +211,17 @@ def menu_mods(source: BaseApp | BaseService):
 			logging.error('Invalid source type for mods menu.')
 			return
 
-		if handler is not None and hasattr(handler, 'find_mods'):
-			add_help = handler.find_mods.__doc__
-			if add_help is not None:
-				add_help = add_help.strip().split('\n')[0].strip()
+		if handler is not None:
+			if hasattr(handler, 'find_mods'):
+				add_help = handler.find_mods.__doc__
+				if add_help is not None:
+					add_help = add_help.strip().split('\n')[0].strip()
+				else:
+					logging.debug('Mod handler does not provide help for mods search.')
+			else:
+				logging.debug('Mod handler does not support mods search.')
+		else:
+			logging.debug('Mod handler is not available.')
 
 		counter = 0
 		mods = source.get_enabled_mods()
@@ -243,7 +250,7 @@ def menu_mods(source: BaseApp | BaseService):
 		opt = input(': ').lower()
 		if opt.isdigit() and 1 <= int(opt) <= counter:
 			if configurable:
-				source.remove_mod(mods[int(opt) - 1].id)
+				source.remove_mod(mods[int(opt) - 1])
 		elif opt == 'b':
 			return
 		elif opt == 'q':
