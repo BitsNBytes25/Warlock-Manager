@@ -221,7 +221,8 @@ def menu_mods(source: BaseApp | BaseService):
 			else:
 				logging.debug('Mod handler does not support mods search.')
 		else:
-			logging.debug('Mod handler is not available.')
+			logging.error('Mod handler is not available for this application.')
+			return
 
 		counter = 0
 		mods = source.get_enabled_mods()
@@ -378,7 +379,7 @@ def menu_service(service: BaseService):
 			controls_configure.append(f'[1-{str(counter)}]')
 		controls_configure.append('other [O]ptions')
 
-		if 'mods' in features:
+		if 'mods' in features and service.game.mod_handler is not None:
 			controls_configure.append('[M]ods')
 
 		if service.is_stopped():
