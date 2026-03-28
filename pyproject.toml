@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "warlock-manager"
-version = "2.1.1"
+version = "2.1.2"
 description = "Dependency library for game-server management applications."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -55,3 +55,5 @@ include = ["warlock_manager*"]
 "Bug Tracker" = "https://github.com/BitsNBytes25/Warlock-Manager/issues"
 "Homepage" = "https://warlock.nexus"
 "Repository" = "https://github.com/BitsNBytes25/Warlock-Manager"
+"Changelog" = "https://github.com/BitsNBytes25/Warlock-Manager/blob/main/CHANGELOG.md"
+

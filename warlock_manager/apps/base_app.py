@@ -12,6 +12,7 @@ from typing_extensions import deprecated
 
 if TYPE_CHECKING:
 	from warlock_manager.services.base_service import BaseService
+	from warlock_manager.mods.base_mod import BaseMod
 
 from warlock_manager.libs.tui import prompt_yn, prompt_text
 from warlock_manager.libs import utils
@@ -51,6 +52,11 @@ class BaseApp(ABC):
 		self.service_handler: 'BaseService' = None
 		"""
 		Specific service to handle for this specific game
+		"""
+
+		self.mod_handler: 'BaseMod' = None
+		"""
+		Specific mod handler to use for this specific game
 		"""
 
 		self.service_prefix = ''

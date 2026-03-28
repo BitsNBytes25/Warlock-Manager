@@ -153,55 +153,111 @@ def menu_config(source: BaseApp | BaseService, configs: list):
 			search = opt
 
 
-def menu_mods(source: BaseApp | BaseService):
+def menu_mods_search(source: BaseApp | BaseService, query: str):
 	while True:
-		print_header('Mods Management')
+		print_header('Mods Search')
 
-		table = Table()
-		table.borders = False
+		table = Table(['#', 'Author', 'Mod', 'Version', 'URL'])
 
-		if isinstance(source, BaseService) and not source.is_stopped():
-			configurable = False
-		elif isinstance(source, BaseApp) and source.is_active():
-			configurable = False
+		if isinstance(source, BaseService):
+			if not source.is_stopped():
+				logging.error('Cannot search mods while a service is running.')
+				return
+			results = source.game.mod_handler.find_mods(query)
+		elif isinstance(source, BaseApp):
+			if source.is_active():
+				logging.error('Cannot search mods while a service is running.')
+				return
+			results = source.mod_handler.find_mods(query)
 		else:
-			configurable = True
+			logging.error('Invalid source type for mods menu.')
+			return
 
 		counter = 0
-		mods = source.get_mods()
+		for mod in results:
+			counter += 1
+			table.add([f'[{str(counter)}]', mod.author, mod.name, mod.version, mod.url])
+
+		table.render()
+		print('')
+		print(f'[1-{counter} to install mod, [B]ack, [Q]uit, or search again')
+		opt = input(': ').lower()
+		if opt.isdigit() and 1 <= int(opt) <= counter:
+			source.add_mod(results[int(opt) - 1])
+			return
+		elif opt == '' or opt == 'b':
+			return
+		elif opt == 'q':
+			sys.exit(0)
+		else:
+			query = opt
+
+
+def menu_mods(source: BaseApp | BaseService):
+	while True:
+		add_help = None
+		handler = None
+		print_header('Mods Management')
+
+		table = Table(['#', 'Author', 'Mod', 'Version', 'URL'])
+
+		if isinstance(source, BaseService):
+			configurable = source.is_stopped()
+			handler = source.game.mod_handler
+		elif isinstance(source, BaseApp):
+			configurable = not source.is_active()
+			handler = source.mod_handler
+		else:
+			logging.error('Invalid source type for mods menu.')
+			return
+
+		if handler is not None:
+			if hasattr(handler, 'find_mods'):
+				add_help = handler.find_mods.__doc__
+				if add_help is not None:
+					add_help = add_help.strip().split('\n')[0].strip()
+				else:
+					logging.debug('Mod handler does not provide help for mods search.')
+			else:
+				logging.debug('Mod handler does not support mods search.')
+		else:
+			logging.error('Mod handler is not available for this application.')
+			return
+
+		counter = 0
+		mods = source.get_enabled_mods()
 		for mod in mods:
 			counter += 1
-			status = f'{ICON_ENABLED} Enabled' if mod['enabled'] else f'{ICON_DISABLED} Disabled'
 			if configurable:
-				table.add([f'[{str(counter)}]', mod['name'], status])
+				table.add([f'[{str(counter)}]', mod.author, mod.name, mod.version, mod.url])
 			else:
-				table.add(['', mod['name'], status])
+				table.add(['', mod.author, mod.name, mod.version, mod.url])
 
 		print('')
 		if len(table.data) > 0:
 			table.render()
 			print('')
 			if configurable:
-				print(f'[1-{counter} to toggle mod, [B]ack to previous menu, [Q]uit to exit')
+				print(f'[1-{counter} to remove mod')
 			else:
 				print('Managing of mods is disabled while service is active')
-				print('[B]ack to previous menu, [Q]uit to exit')
 		else:
 			print('No mods installed.')
-			return
 
+		if configurable and add_help:
+			print('Enter text to search for a mod')
+			print(add_help)
+		print('or [B]ack to previous menu, [Q]uit to exit')
 		opt = input(': ').lower()
 		if opt.isdigit() and 1 <= int(opt) <= counter:
 			if configurable:
-				mod = mods[int(opt) - 1]
-				if mod['enabled']:
-					source.disable_mod(mod['id'])
-				else:
-					source.enable_mod(mod['id'])
+				source.remove_mod(mods[int(opt) - 1])
 		elif opt == 'b':
 			return
 		elif opt == 'q':
 			sys.exit(0)
+		elif opt != '' and configurable and add_help:
+			menu_mods_search(source, opt)
 
 
 def menu_backup(service: BaseService):
@@ -323,7 +379,7 @@ def menu_service(service: BaseService):
 			controls_configure.append(f'[1-{str(counter)}]')
 		controls_configure.append('other [O]ptions')
 
-		if 'mods' in features:
+		if 'mods' in features and service.game.mod_handler is not None:
 			controls_configure.append('[M]ods')
 
 		if service.is_stopped():

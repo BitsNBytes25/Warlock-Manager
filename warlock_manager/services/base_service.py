@@ -8,6 +8,11 @@ from abc import abstractmethod, ABC
 
 from SystemdUnitParser import SystemdUnitParser
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+	from warlock_manager.mods.base_mod import BaseMod
+
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.libs.get_wan_ip import get_wan_ip
 from warlock_manager.libs.tui import prompt_yn, prompt_text
@@ -1541,46 +1546,30 @@ class BaseService(ABC):
 			else:
 				logging.info('Skipping non-present file: %s' % file_path)
 
-	def get_mods(self) -> list:
+	def get_enabled_mods(self) -> list['BaseMod']:
 		"""
-		Get all mods that are available on this service
-
-		Each list is expected to contain the following properties:
-
-		* id - ID descriptor of this mod, either generated or assigned by the mod system
-		* name - Short name of the mod
-		* path - Path on the filesystem to this mod
-		* enabled - T/F if this mod is enabled for this game
+		Get all enabled mods that are locally available on this service
 
 		:return:
 		"""
 		return []
 
-	def enable_mod(self, mod_id: str):
+	def add_mod(self, mod: 'BaseMod') -> bool:
 		"""
-		Enable an installed mod in this game
+		Install a mod
 
-		:param mod_id:
+		:param mod:
 		:return:
 		"""
-		pass
+		return False
 
-	def disable_mod(self, mod_id: str):
+	def remove_mod(self, mod: 'BaseMod') -> bool:
 		"""
-		Disable a mod from this game service, but do not uninstall it (if possible)
-
-		:param mod_id:
-		:return:
-		"""
-		pass
-
-	def remove_mod(self, mod_id: str):
-		"""
-		Remove a mod by its mod ID
+		Remove a mod
 
 		Will completely uninstall the requested mod
 
-		:param mod_id:
+		:param mod:
 		:return:
 		"""
-		pass
+		return False

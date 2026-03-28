@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.1.2] - 2026-03-28
+
+### Added
+
+- Add interface for managing game mods
+
+
 ## [2.1.1] - 2026-03-25
 
 ### Added
@@ -181,8 +188,18 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.1.2**: Add support for mod management in the CLI application
+- **v2.1.1**: Versioning by tracking the commit hash during installation
+- **v2.1.0**: CLI application for managing Warlock-compatible games
+- **v2.0.4**: Backport versioning by tracking the commit hash during installation
+- **v2.0.3**: Backport deployment to PyPI
 - **v2.0.2**: Minor bug fixes for process status handling
 - **v2.0.1**: Socket support and port detection enhancements  
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.1.2]: https://pypi.org/project/warlock-manager/2.1.2
+[2.1.1]: https://pypi.org/project/warlock-manager/2.1.1
+[2.1.0]: https://pypi.org/project/warlock-manager/2.1.0
+[2.0.4]: https://pypi.org/project/warlock-manager/2.0.4
+[2.0.3]: https://pypi.org/project/warlock-manager/2.0.3

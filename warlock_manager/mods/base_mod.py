@@ -1,0 +1,201 @@
+import json
+import logging
+import os
+
+from warlock_manager.libs.download import download_file
+from warlock_manager.libs import utils
+
+
+class BaseMod:
+	def __init__(self):
+		self.name: str = ''
+		"""
+		Human-friendly name of this mod
+		"""
+
+		self.description: str | None = None
+		"""
+		Human-friendly description of this mod
+		"""
+
+		self.url: str | None = None
+		"""
+		Informative URL of this mod
+		"""
+
+		self.icon: str | None = None
+		"""
+		Icon URL for this mod, must be fully resolved
+		"""
+
+		self.id: str | None = None
+		"""
+		Optional unique identifier for this mod
+		"""
+
+		self.author: str | None = None
+		"""
+		Author name and/or contact info for the author of this mod
+		"""
+
+		self.source: str | None = None
+		"""
+		Source URL to download this mod
+		"""
+
+		self.version: str | None = None
+		"""
+		Version of this mod
+		"""
+
+		self.package: str | None = None
+		"""
+		Base package filename of this mod file, generally the source archive
+		"""
+
+		self.dependencies: list[str] | None = None
+		"""
+		List of mod dependencies
+		"""
+
+		self.files: list[str] | None = None
+		"""
+		List of files installed in the game path
+		"""
+
+	def to_dict(self) -> dict:
+		"""
+		Returns a dict representation of the mod.
+		"""
+		return {
+			'name': self.name,
+			'description': self.description,
+			'url': self.url,
+			'icon': self.icon,
+			'id': self.id,
+			'author': self.author,
+			'source': self.source,
+			'version': self.version,
+			'package': self.package,
+			'dependencies': self.dependencies,
+			'files': self.files,
+		}
+
+	@classmethod
+	def from_dict(cls, data: dict) -> 'BaseMod':
+		"""
+		Populate an object from a flat dictionary, (ie; that of generated from JSON)
+		:param data:
+		:return:
+		"""
+		mod = cls()
+		for key, value in data.items():
+			setattr(mod, key, value)
+		return mod
+
+	def __str__(self):
+		"""
+		Returns a pretty string representation for pprint and print().
+		"""
+		return json.dumps(self.to_dict(), indent=4)
+
+	def __repr__(self):
+		return str(self)
+
+	def __eq__(self, other):
+		"""
+		Compare this mod against another and check if they are the same
+
+		:param other:
+		:return:
+		"""
+
+		return self.name == other.name and self.id == other.id and self.version == other.version
+
+	def register(self):
+		"""
+		Register a mod by adding it to the registration file.
+
+		Use a comparison key to ensure that the mod is only registered once.
+		This key should be one of the properties under BaseMod which can be used to uniquely identify the mod.
+
+		:return:
+		"""
+		registered_mods = self.get_registered_mods()
+		for i in range(len(registered_mods)):
+			mod = registered_mods[i]
+			if mod == self:
+				# Detected mod is the same as this one; replace the list.
+				registered_mods[i] = self
+				self.save_registered_mods(registered_mods)
+				return
+
+		# Mod not found, that's fine, just append it!
+		registered_mods.append(self)
+		self.save_registered_mods(registered_mods)
+
+	def download(self) -> bool:
+		"""
+		Download this mod to the Packages cache
+
+		Requires source and package to be set
+		:return:
+		"""
+
+		if not self.source:
+			logging.error('Mod install source not found!')
+			return False
+
+		if not self.package:
+			logging.error('Mod install package not found!')
+			return False
+
+		target_archive = os.path.join(utils.get_app_directory(), 'Packages', self.package)
+		if not os.path.exists(target_archive):
+			download_file(self.source, target_archive)
+		else:
+			logging.debug('Mod already downloaded, skipping download')
+
+		return True
+
+	@classmethod
+	def find_mods(cls, mod_lookup: str) -> list['BaseMod']:
+		# Search for mods matching a query, must be extended.
+		pass
+
+	@classmethod
+	def get_registered_mods(cls) -> list['BaseMod']:
+		"""
+		Get all registered mods, eg all mods which are present in the registration file
+		:return:
+		"""
+		mods_path = os.path.join(utils.get_app_directory(), 'Packages', 'mods.json')
+		if not os.path.exists(mods_path):
+			# No mods installed; mods cache is empty.
+			return []
+
+		mods = []
+		with open(mods_path, 'r') as f:
+			raw_mods = json.load(f)
+
+		for raw in raw_mods:
+			mods.append(cls.from_dict(raw))
+
+		return mods
+
+	@classmethod
+	def save_registered_mods(cls, mods: list['BaseMod']):
+		"""
+		Save the list of registered mods to the registration file
+
+		:param mods:
+		:return:
+		"""
+		mods_path = os.path.join(utils.get_app_directory(), 'Packages', 'mods.json')
+
+		flat_mods = []
+		for mod in mods:
+			flat_mods.append(mod.to_dict())
+
+		with open(mods_path, 'w') as f:
+			json.dump(flat_mods, f, indent=4)
