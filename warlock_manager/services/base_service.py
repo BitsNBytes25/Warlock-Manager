@@ -265,6 +265,15 @@ class BaseService(ABC):
 		"""
 		return self.service
 
+	def get_ip(self) -> str:
+		"""
+		Get the IP to connect to, can also be a hostname if necessary.
+
+		By default it just returns the WAN IP of the server.
+		:return:
+		"""
+		return get_wan_ip()
+
 	def get_port(self) -> int | None:
 		"""
 		Get the primary port of the service, or None if not applicable
@@ -1192,7 +1201,7 @@ class BaseService(ABC):
 			# Service-related fields
 			'service': self.service,
 			'name': self.get_name(),
-			'ip': get_wan_ip(),
+			'ip': self.get_ip(),
 			'port': self.get_port(),
 			'enabled': self.is_enabled(),
 			'max_players': self.get_player_max(),
@@ -1573,3 +1582,19 @@ class BaseService(ABC):
 		:return:
 		"""
 		return False
+
+	def get_version(self) -> str | None:
+		"""
+		Get the version of the game binary
+
+		:return:
+		"""
+		return None
+
+	def get_loader(self) -> str | None:
+		"""
+		Get the loader used to launch the game
+
+		:return:
+		"""
+		return None

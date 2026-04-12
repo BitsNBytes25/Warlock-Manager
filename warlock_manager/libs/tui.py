@@ -2,6 +2,8 @@ import math
 import os
 import readline
 import shutil
+import subprocess
+import tempfile
 from typing import Union
 import logging
 
@@ -47,6 +49,39 @@ def get_terminal_width(default: int = 80) -> int:
 		return shutil.get_terminal_size().columns
 	except (AttributeError, OSError):
 		return default
+
+
+def prompt_long_text(
+	prompt: str = 'Enter the text in your editor and save/exit when done',
+	default: str = '',
+	suffix: str = '.txt'
+) -> str:
+	"""
+	Prompt the user to edit a string in their preferred editor.
+
+	This is generally useful for editing long text that does not fit in a simple editor line.
+
+	:param prompt:
+	:param default:
+	:param suffix:
+	:return:
+		str: The text input provided by the user.
+	"""
+	print(prompt)
+	input('Press Enter to open your editor, save and exit when done.')
+	with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=suffix) as f:
+		temp_path = f.name
+		if default:
+			f.write(default)
+
+	try:
+		editor = os.environ.get('EDITOR', 'vim')
+		subprocess.run([editor, temp_path], check=True)
+
+		with open(temp_path, 'r') as f:
+			return f.read()
+	finally:
+		os.unlink(temp_path)
 
 
 def prompt_text(prompt: str = 'Enter text: ', default: str = '', prefill: bool = False) -> str:

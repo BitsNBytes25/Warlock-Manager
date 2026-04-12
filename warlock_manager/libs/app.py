@@ -2,9 +2,11 @@ import logging
 import os
 import sys
 
+from warlock_manager.nexus.nexus import Nexus
 from warlock_manager.libs.meta import get_meta
 from warlock_manager.libs.get_wan_ip import get_wan_ip
-from warlock_manager.libs.tui import print_header, Table, print_subheader, prompt_yn, prompt_text, prompt_options
+from warlock_manager.libs.tui import print_header, Table, print_subheader, prompt_yn, prompt_text, prompt_options, \
+	prompt_long_text
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.services.base_service import BaseService
 
@@ -19,6 +21,8 @@ ICON_GLOBE = '🌐'
 ICON_LOCKED = '🔒'
 ESCAPE_STRIKE = '\u001b[9m'
 ESCAPE_RESET = '\u001b[0m'
+
+AUTH_TOKEN = None
 
 
 def stringify_value(key, service: BaseService):
@@ -153,36 +157,45 @@ def menu_config(source: BaseApp | BaseService, configs: list):
 			search = opt
 
 
-def menu_mods_search(source: BaseApp | BaseService, query: str):
+def menu_mods_search(source: BaseService, query: str):
 	while True:
 		print_header('Mods Search')
 
-		table = Table(['#', 'Author', 'Mod', 'Version', 'URL'])
+		locked = not source.is_stopped()
+		table = Table(['#', 'Author', 'Mod', 'Installed', 'Version', 'URL'])
 
-		if isinstance(source, BaseService):
-			if not source.is_stopped():
-				logging.error('Cannot search mods while a service is running.')
-				return
-			results = source.game.mod_handler.find_mods(query)
-		elif isinstance(source, BaseApp):
-			if source.is_active():
-				logging.error('Cannot search mods while a service is running.')
-				return
-			results = source.mod_handler.find_mods(query)
-		else:
-			logging.error('Invalid source type for mods menu.')
-			return
+		results = source.game.mod_handler.find_mods(source, query)
+		current_mods = source.get_enabled_mods()
 
 		counter = 0
 		for mod in results:
 			counter += 1
-			table.add([f'[{str(counter)}]', mod.author, mod.name, mod.version, mod.url])
+
+			# Check to see if this mod is already installed, just to show reference to the user.
+			current = 'N/A'
+			for current_mod in current_mods:
+				if mod.id == current_mod.id and mod.author == current_mod.author:
+					current = current_mod.version
+					break
+
+			table.add(
+				[f'[{str(counter)}]' if not locked else ICON_LOCKED,
+				 mod.author,
+				 mod.name,
+				 current,
+				 mod.version,
+				 mod.url
+				 ])
 
 		table.render()
 		print('')
-		print(f'[1-{counter} to install mod, [B]ack, [Q]uit, or search again')
+		if locked:
+			print('Installing is disabled while game is running')
+			print('[B]ack, [Q]uit, or search again')
+		else:
+			print(f'[1-{counter}] to install mod, [B]ack, [Q]uit, or search again')
 		opt = input(': ').lower()
-		if opt.isdigit() and 1 <= int(opt) <= counter:
+		if not locked and opt.isdigit() and 1 <= int(opt) <= counter:
 			source.add_mod(results[int(opt) - 1])
 			return
 		elif opt == '' or opt == 'b':
@@ -193,7 +206,7 @@ def menu_mods_search(source: BaseApp | BaseService, query: str):
 			query = opt
 
 
-def menu_mods(source: BaseApp | BaseService):
+def menu_mods(source: BaseService):
 	while True:
 		add_help = None
 		handler = None
@@ -201,15 +214,8 @@ def menu_mods(source: BaseApp | BaseService):
 
 		table = Table(['#', 'Author', 'Mod', 'Version', 'URL'])
 
-		if isinstance(source, BaseService):
-			configurable = source.is_stopped()
-			handler = source.game.mod_handler
-		elif isinstance(source, BaseApp):
-			configurable = not source.is_active()
-			handler = source.mod_handler
-		else:
-			logging.error('Invalid source type for mods menu.')
-			return
+		configurable = source.is_stopped()
+		handler = source.game.mod_handler
 
 		if handler is not None:
 			if hasattr(handler, 'find_mods'):
@@ -231,7 +237,7 @@ def menu_mods(source: BaseApp | BaseService):
 			if configurable:
 				table.add([f'[{str(counter)}]', mod.author, mod.name, mod.version, mod.url])
 			else:
-				table.add(['', mod.author, mod.name, mod.version, mod.url])
+				table.add([ICON_LOCKED, mod.author, mod.name, mod.version, mod.url])
 
 		print('')
 		if len(table.data) > 0:
@@ -250,13 +256,13 @@ def menu_mods(source: BaseApp | BaseService):
 		print('or [B]ack to previous menu, [Q]uit to exit')
 		opt = input(': ').lower()
 		if opt.isdigit() and 1 <= int(opt) <= counter:
-			if configurable:
+			if configurable and prompt_yn('Are you sure you want to remove this mod?', default='n'):
 				source.remove_mod(mods[int(opt) - 1])
 		elif opt == 'b':
 			return
 		elif opt == 'q':
 			sys.exit(0)
-		elif opt != '' and configurable and add_help:
+		elif opt != '' and add_help:
 			menu_mods_search(source, opt)
 
 
@@ -301,6 +307,7 @@ def menu_backup(service: BaseService):
 
 def menu_service(service: BaseService):
 	features = service.game.features - service.game.disabled_features
+	nexus = Nexus()
 
 	while True:
 		print_header(f'Manage {service.get_name()}')
@@ -310,6 +317,9 @@ def menu_service(service: BaseService):
 		port_configs = []
 		counter = 0
 		options_ordered = []
+
+		# Push some metrics to Nexus if enabled.
+		nexus.service_details(service)
 
 		# Provide basic stats; these are not configurable, but are still useful
 		table.add(['Status:', '', stringify_value('Status', service)])
@@ -459,10 +469,266 @@ def menu_service(service: BaseService):
 					return
 
 
+def menu_public_auth(nexus: Nexus):
+	"""
+	Set the auth token for managing the public profile and managing hosts
+
+	:return:
+	"""
+	global AUTH_TOKEN
+	print_header('Log into Warlock.Nexus')
+	while True:
+		token = input('Enter your Warlock.Nexus auth token or [B]ack: ').strip()
+
+		if token.lower() == 'b':
+			nexus.user_auth = None
+			return
+
+		nexus.user_auth = token
+		ret = nexus.community_ping()
+		if ret['success']:
+			# Cache this in memory for future use
+			AUTH_TOKEN = token
+			return
+		else:
+			print('')
+			print(ret['message'])
+
+
+def menu_public_email(nexus: Nexus):
+	print_header('Set Email for Warlock.Nexus')
+	while True:
+		print('Please enter your email you used to subscribe on https://ko-fi.com/bitsandbytes')
+		print('To go back, just press ENTER without changing your email.')
+		print('')
+		email = prompt_text('Email:', nexus.email, True)
+
+		if email == nexus.email or email == '':
+			return
+
+		nexus.email = email
+		# Try to perform a lookup to validate the email
+		full_details = nexus.community_full()
+		if full_details['success']:
+			nexus.set_email(email)
+			return
+		else:
+			print('')
+			print(full_details['message'])
+			print('')
+			print('Could not validate email.  Please try again.')
+
+
+def menu_public_hosts(nexus):
+	while True:
+		print_header('Registered Hosts')
+		print('')
+		print('Server hosts that are authorized to access mod data and publish public game metrics')
+		print('')
+		full_details = nexus.community_full()
+		if not full_details['success']:
+			print(full_details['message'])
+			return
+
+		table = Table(['#', 'IP', 'OS', 'Hostname', 'Region', 'Country'])
+		hosts = []
+		counter = 0
+		for host in full_details['data']['hosts']:
+			counter += 1
+			table.add([
+				counter,
+				host['ip'],
+				host['os'],
+				host['hostname'],
+				host['region'],
+				host['country']
+			])
+			hosts.append(host['id'])
+
+		if len(hosts) == 0:
+			print('No registered hosts')
+			print('')
+			print('[R]egister this host | [B]ack to previous menu, [Q]uit to exit')
+		else:
+			table.render()
+			print('')
+			print('[1-%s] to unregister and revoke authorization on a host' % counter)
+			if not full_details['data']['host_registered']:
+				print('[R]egister this host')
+			print('[B]ack to previous menu, [Q]uit to exit')
+		opt = input(': ').lower()
+
+		if opt == 'b':
+			return
+		elif opt.isdigit() and 1 <= int(opt) <= counter:
+			host_id = hosts[int(opt) - 1]
+			if prompt_yn('Are you sure you want to deregister this host?', default='n'):
+				nexus.host_unregister(host_id)
+		elif opt == 'q':
+			sys.exit(0)
+		elif opt == 'r':
+			nexus.host_register()
+
+
+def menu_public():
+	nexus = Nexus()
+	nexus.user_auth = AUTH_TOKEN
+
+	if nexus.email is None:
+		print('Public community profiles are available to monthly supporters')
+		print(' at https://ko-fi.com/bitsandbytes')
+		print('')
+		print('A $6 monthly donation will allow you to create public profiles,')
+		print(' access mod search and installation for select games')
+		print(' and register up to 3 server hosts.')
+		print('')
+		print('Refer to https://warlock.nexus/pages/communities.html for currently posted communities.')
+		print('')
+		print('Once you sign up, enter the email you used on ko-fi or [ENTER] to go back')
+		opt = input(': ')
+
+		if opt.strip() == '':
+			# Empty response; user opted to skip out
+			return
+
+		nexus.set_email(opt)
+
+	while True:
+		print_header('Public Community Profile')
+		print('')
+		print('This controls how your public profile appears on https://warlock.nexus, (if enabled)')
+		print('')
+
+		full_details = nexus.community_full()
+		if not full_details['success']:
+			loggedin = False
+			print('')
+			print(full_details['message'])
+			print('')
+			print('Could not retrieve community details!  Check that you set your email correctly')
+			print(' and have a valid subscription on https://ko-fi.com/bitsandbytes')
+		else:
+			loggedin = nexus.user_auth is not None
+			table = Table()
+
+			if full_details['data']['expired']:
+				membership_status = f'{ICON_DISABLED} Expired - renew at https://ko-fi.com/bitsandbytes'
+			else:
+				membership_status = f'{ICON_ENABLED} Active'
+			table.add(['Membership Status', '', membership_status])
+
+			table.add(['Expires', '', full_details['data']['expires']])
+
+			if full_details['data']['locked']:
+				public_status = f'{ICON_DISABLED} Administratively Locked (please contact support)'
+			elif not full_details['data']['enabled']:
+				public_status = f'{ICON_DISABLED} Disabled'
+			else:
+				public_status = f'{ICON_ENABLED} Enabled'
+			table.add(['Public', '[1]' if loggedin else ICON_LOCKED, public_status])
+
+			table.add([
+				'Host Usage',
+				'',
+				'%s / %s' % (full_details['data']['current_hosts'], full_details['data']['max_hosts'])
+			])
+			for host in full_details['data']['hosts']:
+				table.add([
+					'Host %s' % host['ip'],
+					'',
+					'%s - %s - %s %s' % (host['os'], host['hostname'], host['region'], host['country'])
+				])
+			table.add([
+				'Host Status',
+				'',
+				(ICON_ENABLED + ' Registered') if full_details['data']['host_registered'] else (ICON_DISABLED + ' Not Registered')
+			])
+			table.add(['Name', '[2]' if loggedin else ICON_LOCKED, full_details['data']['name']])
+			table.add(['Tagline', '[3]' if loggedin else ICON_LOCKED, full_details['data']['tagline']])
+			table.add(['Country', '[4]' if loggedin else ICON_LOCKED, full_details['data']['country']])
+			table.add(['Color', '[5]' if loggedin else ICON_LOCKED, full_details['data']['color']])
+
+			if len(full_details['data']['socials']):
+				table.add(['Socials', '[6]' if loggedin else ICON_LOCKED, full_details['data']['socials'][0]])
+				# Add the rest of them, sans the first two columns.
+				for social in full_details['data']['socials'][1:]:
+					table.add(['', '', social])
+
+			if full_details['data']['description'] == '':
+				desc = 'No description set'
+			else:
+				desc = 'Description set and %s characters long' % len(full_details['data']['description'])
+			table.add(['Description', '[7]' if loggedin else ICON_LOCKED, desc])
+
+			table.render()
+
+		print('')
+		if not full_details['success']:
+			print('[E]mail change | [B]ack to previous menu, [Q]uit to exit')
+		elif loggedin:
+			print('[1-6] to edit | [E]mail change | [H]ost management | [B]ack to previous menu, [Q]uit to exit')
+		else:
+			print('[L]ogin to change values | [E]mail change | [B]ack to previous menu, [Q]uit to exit')
+		opt = input(': ').lower()
+
+		payload = None
+		if loggedin and opt.isdigit() and int(opt) == 1:
+			if full_details['data']['locked']:
+				print('Cannot enable/disable as it is administratively locked.')
+			else:
+				payload = {
+					'enabled': not full_details['data']['enabled']
+				}
+		elif loggedin and opt.isdigit() and int(opt) == 2:
+			payload = {
+				'name': prompt_text('Name: ', full_details['data']['name'], True)
+			}
+		elif loggedin and opt.isdigit() and int(opt) == 3:
+			payload = {
+				'tagline': prompt_text('Tagline: ', full_details['data']['tagline'], True)
+			}
+		elif loggedin and opt.isdigit() and int(opt) == 4:
+			payload = {
+				'country': prompt_text('Country: ', full_details['data']['country'], True)
+			}
+		elif loggedin and opt.isdigit() and int(opt) == 5:
+			payload = {
+				'color': prompt_text('Color: ', full_details['data']['color'], True)
+			}
+		elif loggedin and opt.isdigit() and int(opt) == 6:
+			socials = '\n'.join(full_details['data']['socials'])
+			socials = prompt_long_text('Enter social and web links, one on each line', socials).strip()
+			payload = {
+				'socials': socials.split('\n')
+			}
+		elif loggedin and opt.isdigit() and int(opt) == 7:
+			payload = {
+				'description': prompt_long_text('Description', full_details['data']['description'], '.md')
+			}
+		elif opt == 'b':
+			return
+		elif opt == 'e':
+			menu_public_email(nexus)
+		elif opt == 'h':
+			menu_public_hosts(nexus)
+		elif opt == 'l':
+			menu_public_auth(nexus)
+		elif opt == 'q':
+			sys.exit(0)
+
+		if payload is not None:
+			# A payload was requested; handle that now.
+			ret = nexus.community_patch(payload)
+			if not ret['success']:
+				print('')
+				print(ret['message'])
+
+
 def default_menu_main(game: BaseApp):
 	features = game.features - game.disabled_features
 	meta = get_meta()
 	subtitles = []
+	nexus = Nexus()
 
 	if meta['url']:
 		subtitles.append(meta['url'] + '\n')
@@ -481,6 +747,9 @@ def default_menu_main(game: BaseApp):
 		table.align = ['r', 'l', 'l', 'r', 'l', 'l', 'r', 'r', 'l']
 		counter = 0
 		for svc in services:
+			# Push some metrics to Nexus if enabled.
+			nexus.service_details(svc)
+
 			counter += 1
 			row = []
 			for col in table.header:
@@ -498,6 +767,8 @@ def default_menu_main(game: BaseApp):
 		controls_configure.append('global [O]ptions')
 		if 'create_service' in features:
 			controls_configure.append('[C]reate Service')
+
+		controls_configure.append('[P]ublic Data')
 
 		controls_control.append('[S]tart all')
 		controls_control.append('s[T]op all')
@@ -536,6 +807,8 @@ def default_menu_main(game: BaseApp):
 					game.create_service(new_service)
 		elif opt == 'o':
 			menu_config(game, game.get_options())
+		elif opt == 'p':
+			menu_public()
 		elif opt == 'q':
 			sys.exit(0)
 		elif opt == 's':

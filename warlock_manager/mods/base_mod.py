@@ -1,9 +1,13 @@
 import json
 import logging
 import os
+from typing import TYPE_CHECKING
 
 from warlock_manager.libs.download import download_file
 from warlock_manager.libs import utils
+
+if TYPE_CHECKING:
+	from services.base_service import BaseService
 
 
 class BaseMod:
@@ -159,8 +163,13 @@ class BaseMod:
 		return True
 
 	@classmethod
-	def find_mods(cls, mod_lookup: str) -> list['BaseMod']:
+	def find_mods(cls, source: 'BaseService', mod_lookup: str) -> list['BaseMod']:
 		# Search for mods matching a query, must be extended.
+		pass
+
+	@classmethod
+	def get_mod(cls, source: 'BaseService', mod_id: str) -> 'BaseMod | None':
+		# Get a specific mod by ID, must be extended.
 		pass
 
 	@classmethod

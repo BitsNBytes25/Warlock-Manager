@@ -10,7 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add support for public profiles on https://warlock.nexus
+- Add support for mod lookups from Curseforge
+- Add "prompt_long_text" to TUI for entering a literal page of content
+- Add skeleton for get_ip on services (to allow them to be modified by the game)
+- Add skeleton for get_version on services
+- Add skeleton for get_loader on services (useful for Minecraft)
+- Add support for services to push data to https://warlock.nexus
+- Add support for hosts to be registered on https://warlock.nexus
+- Add TUI for managing public community profile on https://warlock.nexus
+- Add BaseMod.get_mod to retrieve a single mod by its ID
+
 ### Changed
+
+- Modify installer to set up host authentication key for https://warlock.nexus
+- Modify installer to set up container for user email for https://warlock.nexus
+- Modify installer to store game GUID in the management directory
+- Overhaul mod TUI to be more user friendly
+- Add lock icons in TUI for features which cannot be changed (eg: game is running)
+- BaseMod.find_mod now requires the service as the first parameter
 
 ### Deprecated
 

@@ -9,6 +9,7 @@ from warlock_manager.services.base_service import BaseService
 from warlock_manager.libs.sensitive_data_filter import sensitive_data_filter
 from warlock_manager.libs.app import default_menu_main
 from warlock_manager.libs.meta import get_meta
+from warlock_manager.nexus.nexus import Nexus
 
 
 class ClassNameFilter(logging.Filter):
@@ -379,6 +380,7 @@ def app_runner(game: BaseApp):
 		:param service: BaseService | None
 		:return:
 		"""
+		nexus = Nexus()
 		if service and isinstance(service, BaseService):
 			services: list[BaseService] = [service]
 		else:
@@ -414,6 +416,9 @@ def app_runner(game: BaseApp):
 				'ports': svc.get_ports(),
 			}
 			stats[svc.service] = svc.get_info() | svc_stats
+
+			# Push some metrics to Nexus if enabled.
+			nexus.service_details(svc)
 		print(json.dumps(stats))
 		sys.exit(0)
 

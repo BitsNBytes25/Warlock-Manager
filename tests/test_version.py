@@ -75,6 +75,7 @@ class TestVersionBooleanComparisons(unittest.TestCase):
 		self.assertFalse(is_version_newer("1.0.0", "2.0.0"))
 		self.assertTrue(is_version_newer("2.0.0", "1.0.0"))
 		self.assertFalse(is_version_newer("1.0.0", "1.0.0"))
+		self.assertFalse(is_version_newer("21.11.153", "25.1.154"))
 
 	def test_is_version_older(self):
 		self.assertFalse(is_version_older("2.0.0", "1.0.0"))

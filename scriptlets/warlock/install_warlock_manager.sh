@@ -4,6 +4,7 @@
 # Expects the following variables:
 #   GAME_USER    - User account to install the game under
 #   GAME_DIR     - Directory to install the game into
+#   WARLOCK_GUID - Warlock GUID for this game
 #
 # @param $1 Application Repo Name (e.g., user/repo)
 # @param $2 Application Branch Name (default: main)
@@ -83,6 +84,10 @@ EOF
 	touch "$GAME_DIR/.settings.ini"
 	chown $GAME_USER:$GAME_USER "$GAME_DIR/.settings.ini"
 
+	# Save the Warlock GUID so the manager knows what game this is
+	echo -n "$WARLOCK_GUID" > "$GAME_DIR/.warlock.guid"
+	chown $GAME_USER:$GAME_USER "$GAME_DIR/.warlock.guid"
+
 	# A python virtual environment is now required by Warlock-based managers.
 	sudo -u $GAME_USER python3 -m venv "$GAME_DIR/.venv"
 	sudo -u $GAME_USER "$GAME_DIR/.venv/bin/pip" install --upgrade pip
@@ -93,5 +98,12 @@ EOF
 		# Install directly from GitHub
 		sudo -u $GAME_USER "$GAME_DIR/.venv/bin/pip" install warlock-manager@git+https://github.com/BitsNBytes25/Warlock-Manager.git@$MANAGER_BRANCH
 	fi
+
+	# Ensure warlock lib directory exists for supplemental data
+	[ -d "/var/lib/warlock" ] || mkdir -p "/var/lib/warlock"
+	if [ ! -e "/var/lib/warlock/.auth" ]; then
+		head -c 64 /dev/urandom | base64 | tr -d '\n' > "/var/lib/warlock/.auth"
+	fi
+	[ -e "/var/lib/warlock/.email" ] || touch /var/lib/warlock/.email
 }
 
