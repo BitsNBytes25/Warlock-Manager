@@ -162,7 +162,7 @@ def menu_mods_search(source: BaseService, query: str):
 		print_header('Mods Search')
 
 		locked = not source.is_stopped()
-		table = Table(['#', 'Author', 'Mod', 'Installed', 'Version', 'URL'])
+		table = Table(['#', 'Author', 'Mod', 'Installed', 'Version', 'Provider'])
 
 		results = source.game.mod_handler.find_mods(source, query)
 		current_mods = source.get_enabled_mods()
@@ -184,7 +184,7 @@ def menu_mods_search(source: BaseService, query: str):
 				 mod.name,
 				 current,
 				 mod.version,
-				 mod.url
+				 mod.get_provider_title()
 				 ])
 
 		table.render()
@@ -212,7 +212,7 @@ def menu_mods(source: BaseService):
 		handler = None
 		print_header('Mods Management')
 
-		table = Table(['#', 'Author', 'Mod', 'Version', 'URL'])
+		table = Table(['#', 'Author', 'Mod', 'Version', 'Provider'])
 
 		configurable = source.is_stopped()
 		handler = source.game.mod_handler
@@ -235,9 +235,9 @@ def menu_mods(source: BaseService):
 		for mod in mods:
 			counter += 1
 			if configurable:
-				table.add([f'[{str(counter)}]', mod.author, mod.name, mod.version, mod.url])
+				table.add([f'[{str(counter)}]', mod.author, mod.name, mod.version, mod.get_provider_title()])
 			else:
-				table.add([ICON_LOCKED, mod.author, mod.name, mod.version, mod.url])
+				table.add([ICON_LOCKED, mod.author, mod.name, mod.version, mod.get_provider_title()])
 
 		print('')
 		if len(table.data) > 0:
@@ -249,6 +249,7 @@ def menu_mods(source: BaseService):
 				print('Managing of mods is disabled while service is active')
 		else:
 			print('No mods installed.')
+			print('')
 
 		if configurable and add_help:
 			print('Enter text to search for a mod')

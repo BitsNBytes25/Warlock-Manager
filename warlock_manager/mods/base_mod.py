@@ -32,9 +32,14 @@ class BaseMod:
 		Icon URL for this mod, must be fully resolved
 		"""
 
-		self.id: str | None = None
+		self.id: str | int | None = None
 		"""
-		Optional unique identifier for this mod
+		Unique identifier for this mod set by the provider
+		"""
+
+		self.provider: str | None = None
+		"""
+		Provider of this mod, eg; 'curseforge'
 		"""
 
 		self.author: str | None = None
@@ -62,9 +67,12 @@ class BaseMod:
 		List of mod dependencies
 		"""
 
-		self.files: list[str] | None = None
+		self.files: dict[str, str] | None = None
 		"""
-		List of files installed in the game path
+		Dictionary of files installed in the game path
+
+		Key is the source file, usually just '@',
+		but can be '@:path/inside/zip' to extract a specific file from the source package.
 		"""
 
 	def to_dict(self) -> dict:
@@ -77,6 +85,7 @@ class BaseMod:
 			'url': self.url,
 			'icon': self.icon,
 			'id': self.id,
+			'provider': self.provider,
 			'author': self.author,
 			'source': self.source,
 			'version': self.version,
@@ -94,6 +103,13 @@ class BaseMod:
 		"""
 		mod = cls()
 		for key, value in data.items():
+			if key == 'files':
+				# Check to ensure this is a dict, (previous versions used a simple list)
+				if value is not None and not isinstance(value, dict):
+					new_val = {}
+					for file in value:
+						new_val['@'] = file
+					value = new_val
 			setattr(mod, key, value)
 		return mod
 
@@ -113,8 +129,27 @@ class BaseMod:
 		:param other:
 		:return:
 		"""
-
 		return self.name == other.name and self.id == other.id and self.version == other.version
+
+	def is_same(self, other_mod: 'BaseMod') -> bool:
+		"""
+		Check if this mod is the same base mod as another, ignoring the version
+
+		This is suitable in installation checks to see if the mod should be updated or installed.
+
+		:param other_mod:
+		:return:
+		"""
+		return self.provider == other_mod.provider and self.id == other_mod.id
+
+	def calculate_files(self):
+		"""
+		Calculate the files in this mod that are to be installed.
+
+		:return:
+		"""
+		# MUST be extended to do anything; each game has a different mod structure.
+		pass
 
 	def register(self):
 		"""
@@ -164,13 +199,36 @@ class BaseMod:
 
 	@classmethod
 	def find_mods(cls, source: 'BaseService', mod_lookup: str) -> list['BaseMod']:
-		# Search for mods matching a query, must be extended.
-		pass
+		"""
+		Search for a mod manually added within Packages/
+
+		:param source: Source game service to use for reference
+		:param mod_lookup: Query text to lookup
+		:return:
+		"""
+		mods = cls.get_registered_mods()
+		search = mod_lookup.lower()
+		ret = []
+		for mod in mods:
+			if search in mod.name.lower():
+				ret.append(mod)
+		return ret
 
 	@classmethod
-	def get_mod(cls, source: 'BaseService', mod_id: str) -> 'BaseMod | None':
-		# Get a specific mod by ID, must be extended.
-		pass
+	def get_mod(cls, source: 'BaseService', provider: str | None, mod_id: str | int) -> 'BaseMod | None':
+		"""
+		Get a specific mod by ID, this only searches through manually-installed mods.
+
+		:param source:   Source game service to use for reference
+		:param provider: Mod provider, e.g. 'curseforge'
+		:param mod_id:   Mod ID
+		:return:
+		"""
+		mods = cls.get_registered_mods()
+		for mod in mods:
+			if mod.id == mod_id and mod.provider is None:
+				return mod
+		return None
 
 	@classmethod
 	def get_registered_mods(cls) -> list['BaseMod']:
@@ -208,3 +266,11 @@ class BaseMod:
 
 		with open(mods_path, 'w') as f:
 			json.dump(flat_mods, f, indent=4)
+
+	def get_provider_title(self) -> str:
+		if self.provider is None:
+			return 'Manually Added'
+		elif self.provider == 'curseforge':
+			return 'CurseForge'
+		else:
+			return self.provider

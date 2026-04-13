@@ -290,13 +290,14 @@ class Nexus:
 				'message': str(e),
 			}
 
-	def mod_get(self, mod_id: str, version: str | None, loader: str | None):
+	def mod_get(self, provider: str, mod_id: str | int, version: str | None, loader: str | None):
 		"""
 		Get a specific mod metadata from Warlock.Nexus
 
+		:param provider: Mod provider, e.g. 'curseforge'
 		:param mod_id:   Mod ID
-		:param version: Version of the game to limit results to, (if supported)
-		:param loader:  Launcher of the game to limit results to, (if supported)
+		:param version:  Version of the game to limit results to, (if supported)
+		:param loader:   Launcher of the game to limit results to, (if supported)
 		:return:
 		"""
 		headers = {
@@ -304,7 +305,7 @@ class Nexus:
 		}
 
 		try:
-			url = self.base_url + '/mod/get/' + self.game + '/' + mod_id
+			url = self.base_url + '/mod/get/' + self.game + '/' + provider + '/' + mod_id
 			params = {}
 			if version is not None:
 				params['version'] = version

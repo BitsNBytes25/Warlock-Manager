@@ -18,54 +18,49 @@ class WarlockNexusMod(BaseMod):
 		:param mod_lookup: Query text to lookup
 		:return:
 		"""
-		nexus = Nexus()
 		ret = []
+
+		# Search local mods first, to retain support for manually-installed packages
+		mods = cls.get_registered_mods()
+		search = mod_lookup.lower()
+		for mod in mods:
+			if search in mod.name.lower():
+				ret.append(mod)
+
+		# Search Warlock.Nexus for multiple providers
+		nexus = Nexus()
 		result = nexus.mod_search(mod_lookup, source.get_version(), source.get_loader())
 		if not result['success']:
 			logging.error('Failed to search for mods: %s' % result['message'])
 			return ret
 
 		for data in result['data']:
-			mod = WarlockNexusMod()
-			mod.id = data['id']
-			mod.name = data['name']
-			mod.url = data['url']
-			mod.description = data['description']
-			mod.icon = data['icon']
-			mod.author = data['author']
-			mod.source = data['source']
-			mod.version = data['version']
-			mod.package = data['package']
-			mod.dependencies = data['dependencies']
-			ret.append(mod)
+			ret.append(cls.from_dict(data))
 
 		return ret
 
 	@classmethod
-	def get_mod(cls, source: 'BaseService', mod_id: str) -> 'WarlockNexusMod | None':
+	def get_mod(cls, source: 'BaseService', provider: str | None, mod_id: str | int) -> 'WarlockNexusMod | None':
 		"""
 		Get a specific mod by ID, must be a sponsor to use this.
 
-		:param mod_id:
+		:param source:   Source game service to use for reference
+		:param provider: Mod provider, e.g. 'curseforge'
+		:param mod_id:   Mod ID
 		:return:
 		"""
+		if provider is None:
+			# Search through local mods
+			mods = cls.get_registered_mods()
+			for mod in mods:
+				if mod.id == mod_id and mod.provider is None:
+					return mod
+			return None
+
 		nexus = Nexus()
-		result = nexus.mod_get(mod_id, source.get_version(), source.get_loader())
+		result = nexus.mod_get(provider, mod_id, source.get_version(), source.get_loader())
 		if not result['success']:
 			logging.error('Failed to get mod: %s' % result['message'])
 			return None
 
-		data = result['data']
-		mod = WarlockNexusMod()
-		mod.id = data['id']
-		mod.name = data['name']
-		mod.url = data['url']
-		mod.description = data['description']
-		mod.icon = data['icon']
-		mod.author = data['author']
-		mod.source = data['source']
-		mod.version = data['version']
-		mod.package = data['package']
-		mod.dependencies = data['dependencies']
-
-		return mod
+		return cls.from_dict(result['data'])

@@ -107,6 +107,20 @@ def app_runner(game: BaseApp):
 		)
 	]
 
+	arg_mod_provider = Annotated[
+		str | None,
+		typer.Option(
+			help='Mod provider to use for this operation, ex. "curseforge" or "modrinth"'
+		)
+	]
+
+	arg_mod_id = Annotated[
+		str,
+		typer.Option(
+			help='Mod ID to install, ex. "1212554"'
+		)
+	]
+
 	@app.callback(invoke_without_command=True)
 	def default(
 		ctx: typer.Context,
@@ -496,6 +510,53 @@ def app_runner(game: BaseApp):
 		else:
 			game.set_option(option, value)
 		sys.exit(0)
+
+	if game.mod_handler is not None:
+		@app.command()
+		def get_mods(service: arg_service_required):
+			"""
+			Get all enabled mods for a service in JSON format
+
+			:param service:
+			:return:
+			"""
+			ret = []
+			for mod in service.get_enabled_mods():
+				ret.append(mod.to_dict())
+			print(json.dumps(ret))
+			sys.exit(0)
+
+		@app.command()
+		def install_mod(service: arg_service_required, provider: arg_mod_provider, id: arg_mod_id):
+			"""
+			Install a mod on a service, set the mod by its provider name and mod ID
+
+			:param service:
+			:param provider:
+			:param mod:
+			:return:
+			"""
+			mod = service.game.mod_handler.get_mod(service, provider, id)
+			if not mod:
+				print('Mod not found!')
+				sys.exit(1)
+			sys.exit(0 if service.add_mod(mod) else 1)
+
+		@app.command()
+		def remove_mod(service: arg_service_required, provider: arg_mod_provider, id: arg_mod_id):
+			"""
+			Remove a mod from a service, set the mod by its provider name and mod ID
+
+			:param service:
+			:param provider:
+			:param mod:
+			:return:
+			"""
+			mod = service.get_mod(provider, id)
+			if not mod:
+				print('Mod not installed!')
+				sys.exit(1)
+			sys.exit(0 if service.remove_mod(mod) else 1)
 
 	@app.command()
 	def first_run():

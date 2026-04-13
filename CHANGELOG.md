@@ -13,13 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for public profiles on https://warlock.nexus
 - Add support for mod lookups from Curseforge
 - Add "prompt_long_text" to TUI for entering a literal page of content
-- Add skeleton for get_ip on services (to allow them to be modified by the game)
-- Add skeleton for get_version on services
-- Add skeleton for get_loader on services (useful for Minecraft)
+- Add skeleton for BaseService.get_ip (to allow them to be modified by the game)
+- Add skeleton for BaseService.get_version
+- Add skeleton for BaseService.get_loader (useful for Minecraft)
 - Add support for services to push data to https://warlock.nexus
 - Add support for hosts to be registered on https://warlock.nexus
 - Add TUI for managing public community profile on https://warlock.nexus
 - Add BaseMod.get_mod to retrieve a single mod by its ID
+- Add CLI API for get_mods for a given service
+- Add CLI API for install_mod for a given service
+- Add CLI API for remove_mod for a given service
+- Add support for provider source in mods
+- Add BaseMod.is_same to compare mods ignoring their version
+- Add skeleton for BaseMod.calculate_files for generating the list of files to be installed
+- Add support for defining the provider for WarlockNexusMods.get_mod
+- Add BaseService.install_mod_dependencies for installing dependencies of a mod
+- Add BaseService.remove_mod_files for removing files associated with a mod
+- Add BaseService.get_mod for retrieving an enabled mod
+- Add BaseService.check_mod_files_installed for checking if a mod's files are installed
+- Add BaseService.install_mod_files for installing files associated with a mod
 
 ### Changed
 
@@ -29,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overhaul mod TUI to be more user friendly
 - Add lock icons in TUI for features which cannot be changed (eg: game is running)
 - BaseMod.find_mod now requires the service as the first parameter
+- Show mod provider source instead of URL in TUI mods list
+- Add support for int-based mod IDs (Curseforge uses ints)
+- Change mod file listing to be a dict instead of list to support zip archives
+- Populate BaseMod.find_mods to support pulling manually installed mods
+- Populate BaseMod.get_mod to support pulling manually installed mods
 
 ### Deprecated
 

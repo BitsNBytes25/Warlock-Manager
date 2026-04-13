@@ -5,7 +5,7 @@ import shutil
 import sys
 import time
 from abc import abstractmethod, ABC
-
+from zipfile import ZipFile
 from SystemdUnitParser import SystemdUnitParser
 
 from typing import TYPE_CHECKING
@@ -1561,6 +1561,7 @@ class BaseService(ABC):
 
 		:return:
 		"""
+		# MUST be extended to use; each game registers their mods differently
 		return []
 
 	def add_mod(self, mod: 'BaseMod') -> bool:
@@ -1570,7 +1571,24 @@ class BaseService(ABC):
 		:param mod:
 		:return:
 		"""
+		# MUST be extended to use; each game registers their mods differently
 		return False
+
+	def install_mod_dependencies(self, mod: 'BaseMod'):
+		"""
+		Install the dependencies for a given mod
+
+		:param mod:
+		:return:
+		"""
+		if mod.dependencies:
+			for dep in mod.dependencies:
+				logging.info('Ensuring dependency %s is installed' % dep)
+				dep_mod = self.game.mod_handler.get_mod(self, mod.provider, dep)
+				if not dep_mod:
+					logging.error('Failed to find dependency %s for mod %s' % (dep, mod.name))
+				else:
+					self.add_mod(dep_mod)
 
 	def remove_mod(self, mod: 'BaseMod') -> bool:
 		"""
@@ -1581,7 +1599,105 @@ class BaseService(ABC):
 		:param mod:
 		:return:
 		"""
-		return False
+
+		# For additional logic, extend this function with your game-specific logic.
+		self.remove_mod_files(mod)
+		return True
+
+	def remove_mod_files(self, mod: 'BaseMod'):
+		"""
+		Remove the files for a given mod
+
+		Will NOT completely remove the mod from the game configuration, so safe to call during reinstall/upgrade.
+
+		:param mod:
+		:return:
+		"""
+		for file in mod.files.values():
+			target = os.path.join(self.get_app_directory(), file)
+			if os.path.exists(target):
+				os.remove(target)
+
+	def get_mod(self, provider: str, mod_id: str | int) -> 'BaseMod | None':
+		"""
+		Get the locally enabled mod that matches the given provider and mod ID
+
+		:param provider:
+		:param mod_id:
+		:return:
+		"""
+		enabled_mods = self.get_enabled_mods()
+		for check_mod in enabled_mods:
+			if check_mod.provider == provider and check_mod.id == mod_id:
+				return check_mod
+		return None
+
+	def check_mod_files_installed(self, mod: 'BaseMod', mode: str = 'any') -> bool:
+		"""
+		Check if a given mod already has files installed in the game.
+
+		Useful for a pre-check before a mod is installed to know if it will overwrite an existing file.
+		If `mode` is set to 'any' (default behaviour), will return True if ANY file is present.
+		else if `mode` is set to 'all', will return True only if ALL files are present.
+
+		:param mod:  Mod to check
+		:param mode: Set to "any" or "all" (defaults to any)
+		:return:
+		"""
+		for file in mod.files.values():
+			target = os.path.join(self.get_app_directory(), file)
+			if target.endswith('/'):
+				# Skip directories; these can exist across mods
+				continue
+
+			if mode == 'all' and not os.path.exists(target):
+				logging.warning('File %s is missing from game' % file)
+				return False
+			elif mode == 'any' and os.path.exists(target):
+				logging.warning('File %s present in game' % file)
+				return True
+		return True if mode == 'all' else False
+
+	def install_mod_files(self, mod: 'BaseMod') -> bool:
+		"""
+		Install the files into this game
+
+		:param mod:
+		:return:
+		"""
+		for source, target in mod.files.items():
+			target_file = os.path.join(self.get_app_directory(), target)
+
+			# Ensure target directory exists
+			utils.makedirs(os.path.dirname(target_file))
+
+			if target_file.endswith('/'):
+				# Target is just a directory, ensure it exists.
+				logging.info('Creating directory: %s' % target_file)
+				utils.makedirs(target_file)
+			elif source == '@':
+				# Source is the package itself; this just copies the entire mod into the destination.
+				source_file = os.path.join(utils.get_app_directory(), 'Packages', mod.package)
+				logging.info('Copying %s -> %s' % (source_file, target_file))
+				shutil.copy(source_file, target_file)
+				utils.ensure_file_ownership(target_file)
+			elif source.startswith('@:'):
+				# Source is a file within the package, (usually a ZIP archive)
+				source_file = source[2:]
+				source_archive = os.path.join(utils.get_app_directory(), 'Packages', mod.package)
+				if source_archive.endswith('.zip'):
+					logging.info('Extracting %s -> %s' % (source_file, target_file))
+					with ZipFile(source_archive, 'r') as zip_ref:
+						with zip_ref.open(source_file) as f, open(target_file, 'wb') as out_file:
+							shutil.copyfileobj(f, out_file)
+					utils.ensure_file_ownership(target_file)
+				else:
+					logging.error('Cannot install mod %s: Package %s is not a ZIP archive' % (mod.name, mod.package))
+					return False
+			else:
+				logging.error('Cannot install mod %s: Invalid source path %s' % (mod.name, source))
+				return False
+		return True
 
 	def get_version(self) -> str | None:
 		"""
