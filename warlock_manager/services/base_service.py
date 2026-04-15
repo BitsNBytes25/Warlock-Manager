@@ -1208,6 +1208,8 @@ class BaseService(ABC):
 			# API-related fields
 			'app_dir': self.get_app_directory(),
 			'bak_dir': self.get_backup_directory(),
+			'version': self.get_version(),
+			'loader': self.get_loader(),
 		}
 
 	def build_systemd_config(self):
@@ -1613,10 +1615,22 @@ class BaseService(ABC):
 		:param mod:
 		:return:
 		"""
+		# First pass, remove all files from the mod
 		for file in mod.files.values():
 			target = os.path.join(self.get_app_directory(), file)
-			if os.path.exists(target):
+			if os.path.exists(target) and os.path.isfile(target):
+				logging.info('Removing file %s' % file)
 				os.remove(target)
+
+		# Second pass, remove all directories, any non-empty directory probably contains other files
+		for file in mod.files.values():
+			target = os.path.join(self.get_app_directory(), file)
+			if os.path.exists(target) and os.path.isdir(target):
+				if os.listdir(target):
+					logging.warning('Directory %s is not empty, skipping removal' % target)
+				else:
+					logging.info('Removing directory %s' % target)
+					os.rmdir(target)
 
 	def get_mod(self, provider: str, mod_id: str | int) -> 'BaseMod | None':
 		"""
@@ -1628,7 +1642,7 @@ class BaseService(ABC):
 		"""
 		enabled_mods = self.get_enabled_mods()
 		for check_mod in enabled_mods:
-			if check_mod.provider == provider and check_mod.id == mod_id:
+			if check_mod.provider == provider and str(check_mod.id) == str(mod_id):
 				return check_mod
 		return None
 

@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change mod file listing to be a dict instead of list to support zip archives
 - Populate BaseMod.find_mods to support pulling manually installed mods
 - Populate BaseMod.get_mod to support pulling manually installed mods
+- Add version and loader to data returned from service lookups
 
 ### Deprecated
 

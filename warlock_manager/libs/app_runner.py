@@ -554,7 +554,7 @@ def app_runner(game: BaseApp):
 			"""
 			mod = service.get_mod(provider, id)
 			if not mod:
-				print('Mod not installed!')
+				print('Mod not installed!', file=sys.stderr)
 				sys.exit(1)
 			sys.exit(0 if service.remove_mod(mod) else 1)
 

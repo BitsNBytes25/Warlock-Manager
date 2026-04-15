@@ -305,7 +305,7 @@ class Nexus:
 		}
 
 		try:
-			url = self.base_url + '/mod/get/' + self.game + '/' + provider + '/' + mod_id
+			url = self.base_url + '/mod/get/' + self.game + '/' + str(provider) + '/' + str(mod_id)
 			params = {}
 			if version is not None:
 				params['version'] = version
