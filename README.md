@@ -4,7 +4,8 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/warlock-manager)
 [![PyPI - Version](https://img.shields.io/pypi/v/warlock-manager)](https://pypi.org/project/warlock-manager/)
 
-Warlock Manager is a robust, extensible Python library for building game server management applications. It provides a comprehensive foundation for managing game applications, services, configurations, and server communications.
+Warlock Manager is a robust, extensible Python library for building game server management applications. 
+It provides a comprehensive foundation for managing game applications, services, configurations, and server communications.
 
 This is meant to be used with the [Warlock Game Manager](https://warlock.nexus) ([Github Repo](https://github.com/BitsNBytes25/Warlock)),
 but can be used independently.
@@ -25,6 +26,18 @@ Warlock Manager abstracts common game server management tasks, allowing you to b
 ## Features
 
 ### Core Components
+
+In this system, a game is defined as an 'Application' or 'App'.
+This management library is meant to manage one single app to allow it be extended
+to meet the requirements of that specific game.
+
+A map or instance of the game is defined as a 'Service'.
+Each service runs a single instance of the game executable.
+
+An app will have one or more services, based on the game.
+Some games support multiple services from a single game installation,
+some support multiple services from multiple binaries,
+and some only support a single instance.
 
 - **BaseApp**: Abstract base for game application managers
   - Multi-service instance support
@@ -53,6 +66,10 @@ Warlock Manager abstracts common game server management tasks, allowing you to b
   - `RconService`: RCON protocol support
   - `SocketService`: Unix socket-based communication
 
+- **Mod Support**:
+  - `BaseMod`: Baseline mod class for basic functionality and skeleton structure
+  - `WarlockNexusMod`: Support for pulling mod metadata from hosted [Warlock.Nexus](https://warlock.nexus)
+
 ### Utilities
 
 - **CLI Framework**: Built on Typer for robust command-line interfaces
@@ -62,117 +79,10 @@ Warlock Manager abstracts common game server management tasks, allowing you to b
 - **Port Management**: Port discovery, allocation, and validation
 - **Data Filtering**: Sensitive data masking for safe logging
 
-## Installation
+### Default Features
 
-Install as a dependency in your project:
+This library automatically provides commands for:
 
-```bash
-pip install warlock-manager
-```
-
-Or add to your `pyproject.toml`:
-
-```toml
-[project]
-dependencies = [
-    "warlock-manager>=2.1.0",
-]
-```
-
-Or to your `requirements.txt`:
-
-```
-warlock-manager>=2.1.0
-```
-
-## Requirements
-
-- Python 3.10+
-- Dependencies:
-  - `requests>=2.28` - HTTP client library
-  - `pyyaml>=6.0` - YAML parsing
-  - `typer>=0.24.1` - CLI framework
-  - `rcon>=2.4.9` - RCON protocol support
-  - `systemdunitparser>=0.4` - systemd unit file parsing
-  - `packaging>=23.3` - Version handling
-  - `psutil>=7.2.0` - System process utilities
-
-## Quick Start
-
-### Creating a Game Manager
-
-For more detailed examples, check out the [Warlock Game Template](https://github.com/BitsNBytes25/Warlock-Game-Template)
-repository for a templated project you can fork and customize to quickly get started.
-
-Extend `BaseApp` to create a manager for your game:
-
-```python
-from warlock_manager.apps import BaseApp
-from warlock_manager.services import BaseService
-
-class MyGameApp(BaseApp):
-    def __init__(self):
-        super().__init__()
-        self.name = 'mygame'
-        self.desc = 'My Game Server'
-        self.service_prefix = 'mygame-'
-        
-    def get_app_directory(self) -> str:
-        return '/var/games/mygame'
-    
-    def detect_services(self) -> list:
-        # Detect existing game services
-        return []
-    
-    def create_service(self, name: str) -> BaseService:
-        # Create and return a new service instance
-        pass
-```
-
-### Creating a Game Service Handler
-
-Extend `BaseService` to implement service-specific logic:
-
-```python
-from warlock_manager.services import BaseService
-from warlock_manager.config import IniConfig
-
-class MyGameService(BaseService):
-    def __init__(self, service: str, game: BaseApp):
-        super().__init__(service, game)
-        
-        # Configure configuration files
-        self.configs['game_config'] = IniConfig(
-            '/var/games/mygame/game.ini'
-        )
-    
-    def get_port_definitions(self) -> list:
-        # Return list of port definitions: (port_number_or_config_key, 'tcp'/'udp', description)
-        return [
-            ('game_port', 'tcp', 'Game Server Port'),
-            ('query_port', 'udp', 'Query Port'),
-        ]
-    
-    def is_running(self) -> bool:
-        # Check if service is running
-        pass
-```
-
-### Building a CLI Application
-
-Use the built-in CLI framework:
-
-```python
-from warlock_manager.libs.app_runner import app_runner
-
-game = MyGameApp()
-cli_app = app_runner(game)
-
-if __name__ == '__main__':
-    cli_app()
-```
-
-This automatically provides commands for:
 - Service management (start, stop, restart, status)
 - Configuration management (get, set)
 - Port discovery and management
@@ -189,6 +99,49 @@ This provides an interactive menu system for:
 - Controlling service lifecycle
 - Backup and data management
 - Creating new service instances
+
+## Installation
+
+Install as a dependency in your project:
+
+```bash
+pip install warlock-manager
+```
+
+Or add to your `pyproject.toml`:
+
+```toml
+[project]
+dependencies = [
+    "warlock-manager>=2.2.0",
+]
+```
+
+Or to your `requirements.txt`:
+
+```
+warlock-manager>=2.2.0
+```
+
+## Requirements
+
+- Python 3.10+ (3.11+ recommended)
+- Dependencies:
+  - `requests>=2.28` - HTTP client library
+  - `pyyaml>=6.0` - YAML parsing
+  - `typer>=0.24.1` - CLI framework
+  - `rcon>=2.4.9` - RCON protocol support
+  - `systemdunitparser>=0.4` - systemd unit file parsing
+  - `packaging>=23.3` - Version handling
+  - `psutil>=7.2.0` - System process utilities
+
+## Quick Start
+
+For detailed examples, check out the [Warlock Game Template](https://github.com/BitsNBytes25/Warlock-Game-Template)
+repository for a templated project you can fork and customize to quickly get started.
+
+Also check out the games listed as supported at [Warlock.Nexus](https://warlock.nexus) 
+to browse their source repos for more real-world implementations.
 
 ## Configuration
 
@@ -220,33 +173,6 @@ mygame:
     group: Network
 ```
 
-## Features System
-
-Control available functionality through the features system:
-
-```python
-class MyGameApp(BaseApp):
-    def __init__(self):
-        super().__init__()
-        
-        # Available features
-        self.features = {
-            'api',              # Server API support
-            'cmd',              # Command execution via API
-            'create_service',   # Create new service instances
-            'mods',             # Mod support
-        }
-        
-        # Disable specific features
-        self.disabled_features = {'mods'}
-```
-
-Available features:
-- `api` - Server API communication support
-- `cmd` - Command execution capabilities
-- `create_service` - Ability to create new service instances
-- `mods` - Mod/plugin support
-
 ## Development
 
 ### Setting Up Development Environment
@@ -262,6 +188,14 @@ source venv/bin/activate
 
 # Install with development dependencies
 pip install -e ".[dev]"
+```
+
+### Generating Documentation
+
+Documentation is generated using [pydoc-markdown](https://github.com/NiklasRosenstein/pydoc-markdown).
+
+```bash
+pydoc-markdown
 ```
 
 ### Running Tests
@@ -283,55 +217,6 @@ Run linting checks:
 ```bash
 flake8 warlock_manager tests
 ```
-
-## API Reference
-
-### BaseApp
-
-Main application class for game server management.
-
-**Key Methods:**
-- `detect_services()`: Discover existing service instances
-- `create_service(name)`: Create a new service instance
-- `get_services()`: Get list of service instances
-- `get_options()`: Get application-level configuration options
-- `get_option_value(key)`: Get a configuration option value
-- `set_option(key, value)`: Set a configuration option
-- `start_all()`: Start all service instances
-- `stop_all()`: Stop all service instances
-- `is_active()`: Check if any service is running
-- `update()`: Update the application/game
-
-### BaseService
-
-Service instance handler for individual game servers.
-
-**Key Methods:**
-- `load()`: Load service configuration files
-- `get_options()`: Get service configuration options
-- `get_option_value(key)`: Get a configuration option
-- `set_option(key, value)`: Set a configuration option
-- `start()`: Start the service
-- `stop()`: Stop the service
-- `restart()`: Restart the service
-- `is_running()`: Check if service is running
-- `get_port()`: Get service's primary port
-- `get_ports()`: Get all port definitions
-- `is_enabled()`: Check if auto-start is enabled
-- `cmd(command)`: Send command to service
-- `get_player_count()`: Get current player count
-- `get_player_max()`: Get max player capacity
-- `backup()`: Create backup of service data
-- `restore(backup_path)`: Restore from backup
-
-### Configuration Classes
-
-All configuration classes extend `BaseConfig` and provide:
-- `load()`: Load configuration from file
-- `save()`: Save configuration to file
-- `get_option_value(key)`: Get option value
-- `set_option_value(key, value)`: Set option value
-- `exists()`: Check if configuration file exists
 
 ## License
 

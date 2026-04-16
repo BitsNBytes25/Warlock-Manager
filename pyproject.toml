@@ -45,11 +45,23 @@ dev = [
     "flake8>=7.3.0",
     "pre-commit>=4.5.1",
     "pytest-cov>=7.0",
+    "pydoc-markdown>=4.8.0"
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["warlock_manager*"]
+
+[[tool.pydoc-markdown.loaders]]
+type = "python"
+search_path = ["warlock_manager"]
+
+[tool.pydoc-markdown.renderer]
+type = "markdown"
+render_toc = true
+insert_header_anchors = false
+filename = "docs/warlock-manager.md"
+render_module_header = false
 
 [project.urls]
 "Bug Tracker" = "https://github.com/BitsNBytes25/Warlock-Manager/issues"
