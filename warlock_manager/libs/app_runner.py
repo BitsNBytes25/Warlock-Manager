@@ -543,7 +543,7 @@ def app_runner(game: BaseApp):
 			sys.exit(0 if service.add_mod(mod) else 1)
 
 		@app.command()
-		def remove_mod(service: arg_service_required, provider: arg_mod_provider, id: arg_mod_id):
+		def remove_mod(service: arg_service_required, id: arg_mod_id, provider: arg_mod_provider = None):
 			"""
 			Remove a mod from a service, set the mod by its provider name and mod ID
 

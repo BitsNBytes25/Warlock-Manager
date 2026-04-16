@@ -24,7 +24,12 @@ class BaseMod:
 
 		self.url: str | None = None
 		"""
-		Informative URL of this mod
+		Provider URL of this mod
+		"""
+
+		self.info_url: str | None = None
+		"""
+		Info URL of this mod, can be whatever the developer defined.
 		"""
 
 		self.icon: str | None = None
@@ -83,6 +88,7 @@ class BaseMod:
 			'name': self.name,
 			'description': self.description,
 			'url': self.url,
+			'info_url': self.info_url,
 			'icon': self.icon,
 			'id': self.id,
 			'provider': self.provider,
