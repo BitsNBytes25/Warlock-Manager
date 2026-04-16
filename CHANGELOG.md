@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+
+## [2.2.0] - 2026-04-16
+
+### Added
+
 - Add support for public profiles on https://warlock.nexus
 - Add support for mod lookups from Curseforge
 - Add "prompt_long_text" to TUI for entering a literal page of content
@@ -47,14 +62,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Populate BaseMod.find_mods to support pulling manually installed mods
 - Populate BaseMod.get_mod to support pulling manually installed mods
 - Add version and loader to data returned from service lookups
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
 
 
 ## [2.1.2] - 2026-03-28
@@ -224,6 +231,7 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.2.0**: More advanced mod support and support for Warlock.Nexus
 - **v2.1.2**: Add support for mod management in the CLI application
 - **v2.1.1**: Versioning by tracking the commit hash during installation
 - **v2.1.0**: CLI application for managing Warlock-compatible games
@@ -234,6 +242,7 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.0]: https://pypi.org/project/warlock-manager/2.2.0
 [2.1.2]: https://pypi.org/project/warlock-manager/2.1.2
 [2.1.1]: https://pypi.org/project/warlock-manager/2.1.1
 [2.1.0]: https://pypi.org/project/warlock-manager/2.1.0
