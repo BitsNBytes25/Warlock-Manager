@@ -58,7 +58,7 @@ search_path = ["warlock_manager"]
 
 [tool.pydoc-markdown.renderer]
 type = "markdown"
-render_toc = true
+render_toc = false
 insert_header_anchors = false
 filename = "docs/warlock-manager.md"
 render_module_header = false
