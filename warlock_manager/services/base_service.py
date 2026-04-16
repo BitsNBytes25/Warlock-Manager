@@ -1566,11 +1566,12 @@ class BaseService(ABC):
 		# MUST be extended to use; each game registers their mods differently
 		return []
 
-	def add_mod(self, mod: 'BaseMod') -> bool:
+	def add_mod(self, mod: 'BaseMod', force: bool = False) -> bool:
 		"""
 		Install a mod
 
-		:param mod:
+		:param mod: Mod to install
+		:param force: Force the installation even if the mod is already installed
 		:return:
 		"""
 		# MUST be extended to use; each game registers their mods differently
