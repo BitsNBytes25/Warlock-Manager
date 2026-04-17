@@ -506,10 +506,10 @@ def app_runner(game: BaseApp):
 		:return:
 		"""
 		if service and isinstance(service, BaseService):
-			service.set_option(option, value)
+			ret = service.set_option(option, value)
 		else:
-			game.set_option(option, value)
-		sys.exit(0)
+			ret = game.set_option(option, value)
+		sys.exit(0 if ret else 1)
 
 	if game.mod_handler is not None:
 		@app.command()

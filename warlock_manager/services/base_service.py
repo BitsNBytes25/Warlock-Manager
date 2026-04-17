@@ -169,7 +169,7 @@ class BaseService(ABC):
 		print('Invalid option: %s, not present in service configuration!' % option, file=sys.stderr)
 		return ''
 
-	def option_value_updated(self, option: str, previous_value, new_value):
+	def option_value_updated(self, option: str, previous_value, new_value) -> bool | None:
 		"""
 		Handle any special actions needed when an option value is updated
 
@@ -193,7 +193,7 @@ class BaseService(ABC):
 		print('Invalid option: %s, not present in service configuration!' % option, file=sys.stderr)
 		return 'Options'
 
-	def set_option(self, option: str, value: str | int | bool):
+	def set_option(self, option: str, value: str | int | bool) -> bool:
 		"""
 		Set a configuration option in the service config
 
@@ -202,21 +202,35 @@ class BaseService(ABC):
 		:return:
 		"""
 		for config in self.configs.values():
-			if option in config.options:
+			opt = config.get_config(option)
+			if opt is not None:
+				# Convert input value to a _system_ value to ensure '0' matches False
+				new_value = opt.to_system_type(value)
 				previous_value = config.get_value(option)
-				if previous_value == value and config.has_value(option):
+				if previous_value == new_value and config.has_value(option):
 					# No change
-					return
+					return True
 
 				config.set_value(option, value)
 				config.save()
 
 				# Allow the extending service to handle any special actions needed for this option update
-				self.option_value_updated(option, previous_value, value)
-				logging.info('Updated option %s to %s' % (option, value))
-				return
+				post_result = self.option_value_updated(option, previous_value, new_value)
+				if post_result is True:
+					# Post-update either returned a successful operation or nothing at all, either is fine.
+					logging.info('Updated option %s to %s and ran post-update actions successfully' % (option, value))
+					return True
+				elif post_result is None:
+					logging.debug('Post-update returned None, this is fine as it indicates no post-actions taken')
+					logging.info('Updated option %s to %s' % (option, value))
+					return True
+				else:
+					# Post-update explictly returned False, this indicates a problem occurred.
+					logging.warning('Configuration saved, but unable to complete post-update actions!')
+					return False
 
 		logging.warning('Invalid option: %s, not present in service configuration!' % option)
+		return False
 
 	def option_has_value(self, option: str) -> bool:
 		"""
@@ -360,7 +374,7 @@ class BaseService(ABC):
 		:return:
 		"""
 		code = Cmd(['systemctl', 'show', '-p', 'ExecMainStatus', self.service]).text[15:]
-		return int(code)
+		return -1 if code == '' else int(code)
 
 	@abstractmethod
 	def get_game_pid(self) -> int:
@@ -1169,14 +1183,15 @@ class BaseService(ABC):
 		"""
 		Get the backup directory for this game service, which is the directory that contains backups of the game files
 
-		If the game is registered as a multi-binary game, each service is contained within its own directory,
-		otherwise all instances share Backups.
+		All game services are contained in their own separate directory to make management easier.
 
 		:return:
 		"""
-		base = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'Backups')
-		if self.game.multi_binary:
-			base = os.path.join(base, self.service)
+		base = os.path.join(
+			os.path.dirname(os.path.realpath(sys.argv[0])),
+			'Backups',
+			self.service
+		)
 
 		return base
 

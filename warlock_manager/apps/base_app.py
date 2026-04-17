@@ -193,7 +193,7 @@ class BaseApp(ABC):
 		logging.warning('Invalid option: %s, not present in game configuration!' % option)
 		return ''
 
-	def option_value_updated(self, option: str, previous_value, new_value):
+	def option_value_updated(self, option: str, previous_value, new_value) -> bool | None:
 		"""
 		Handle any special actions needed when an option value is updated
 		:param option:
@@ -203,7 +203,7 @@ class BaseApp(ABC):
 		"""
 		pass
 
-	def set_option(self, option: str, value: str | int | bool):
+	def set_option(self, option: str, value: str | int | bool) -> bool:
 		"""
 		Set a configuration option in the game config
 		:param option:
@@ -211,19 +211,35 @@ class BaseApp(ABC):
 		:return:
 		"""
 		for config in self.configs.values():
-			if option in config.options:
+			opt = config.get_config(option)
+			if opt is not None:
+				# Convert input value to a _system_ value to ensure '0' matches False
+				new_value = opt.to_system_type(value)
 				previous_value = config.get_value(option)
-				if previous_value == value:
+				if previous_value == new_value:
 					# No change
-					return
+					return True
 
 				config.set_value(option, value)
 				config.save()
 
-				self.option_value_updated(option, previous_value, value)
-				return
+				# Allow the extending service to handle any special actions needed for this option update
+				post_result = self.option_value_updated(option, previous_value, new_value)
+				if post_result is True:
+					# Post-update either returned a successful operation or nothing at all, either is fine.
+					logging.info('Updated option %s to %s and ran post-update actions successfully' % (option, value))
+					return True
+				elif post_result is None:
+					logging.debug('Post-update returned None, this is fine as it indicates no post-actions taken')
+					logging.info('Updated option %s to %s' % (option, value))
+					return True
+				else:
+					# Post-update explictly returned False, this indicates a problem occurred.
+					logging.warning('Configuration saved, but unable to complete post-update actions!')
+					return False
 
 		logging.warning('Invalid option: %s, not present in game configuration!' % option)
+		return False
 
 	def get_option_options(self, option: str):
 		"""

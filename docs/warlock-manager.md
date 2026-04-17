@@ -1326,7 +1326,8 @@ Get the help text of a configuration option from the service config
 #### option\_value\_updated
 
 ```python
-def option_value_updated(option: str, previous_value, new_value)
+def option_value_updated(option: str, previous_value,
+                         new_value) -> bool | None
 ```
 
 Handle any special actions needed when an option value is updated
@@ -1352,7 +1353,7 @@ Get the display group for a configuration option
 #### set\_option
 
 ```python
-def set_option(option: str, value: str | int | bool)
+def set_option(option: str, value: str | int | bool) -> bool
 ```
 
 Set a configuration option in the service config
@@ -1924,8 +1925,7 @@ def get_backup_directory() -> str
 
 Get the backup directory for this game service, which is the directory that contains backups of the game files
 
-If the game is registered as a multi-binary game, each service is contained within its own directory,
-otherwise all instances share Backups.
+All game services are contained in their own separate directory to make management easier.
 
 
 #### get\_environment
@@ -2629,7 +2629,8 @@ Get the help text of a configuration option from the game config
 #### option\_value\_updated
 
 ```python
-def option_value_updated(option: str, previous_value, new_value)
+def option_value_updated(option: str, previous_value,
+                         new_value) -> bool | None
 ```
 
 Handle any special actions needed when an option value is updated
@@ -2643,7 +2644,7 @@ Handle any special actions needed when an option value is updated
 #### set\_option
 
 ```python
-def set_option(option: str, value: str | int | bool)
+def set_option(option: str, value: str | int | bool) -> bool
 ```
 
 Set a configuration option in the game config
@@ -3403,6 +3404,18 @@ Check if a configuration option has been set
 **Arguments**:
 
 - `name`: Name of the option
+
+#### get\_config
+
+```python
+def get_config(name: str) -> ConfigKey | None
+```
+
+Get the raw configuration key object for the given name, or None if not found
+
+**Arguments**:
+
+- `name`: 
 
 #### get\_default
 

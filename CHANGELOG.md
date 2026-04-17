@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.1] - 2026-04-17
+
+### Changed
+
+- Backup directories now always use the game service name to keep them separated
+- Config updating now returns if the operation was successful or not
+
+### Fixed
+
+- Fix BaseService.get_process_status if systemd returns an empty string for its process status
+
+
 ## [2.2.0] - 2026-04-16
 
 ### Added
@@ -231,6 +243,7 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.2.1**: Minor bug fixes
 - **v2.2.0**: More advanced mod support and support for Warlock.Nexus
 - **v2.1.2**: Add support for mod management in the CLI application
 - **v2.1.1**: Versioning by tracking the commit hash during installation
@@ -242,6 +255,7 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.1]: https://pypi.org/project/warlock-manager/2.2.1
 [2.2.0]: https://pypi.org/project/warlock-manager/2.2.0
 [2.1.2]: https://pypi.org/project/warlock-manager/2.1.2
 [2.1.1]: https://pypi.org/project/warlock-manager/2.1.1

@@ -64,11 +64,11 @@ class BaseConfig(ABC):
 		:param value:
 		:return:
 		"""
-		if name not in self.options:
+		opt = self.get_config(name)
+		if opt is None:
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return ''
 
-		opt = self.options[name]
 		if opt.val_type == 'bool':
 			if value == '':
 				# Allow empty values to defer to default
@@ -117,17 +117,28 @@ class BaseConfig(ABC):
 		"""
 		pass
 
+	def get_config(self, name: str) -> ConfigKey | None:
+		"""
+		Get the raw configuration key object for the given name, or None if not found
+
+		:param name:
+		:return:
+		"""
+		if name in self.options:
+			return self.options[name]
+		else:
+			return None
+
 	def get_default(self, name: str) -> config_types:
 		"""
 		Get the default value of a configuration option
 		:param name:
 		:return:
 		"""
-		if name not in self.options:
+		opt = self.get_config(name)
+		if opt is None:
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return ''
-
-		opt = self.options[name]
 
 		return opt.to_system_type(opt.default)
 
@@ -138,11 +149,12 @@ class BaseConfig(ABC):
 		:param name:
 		:return:
 		"""
-		if name not in self.options:
+		opt = self.get_config(name)
+		if opt is None:
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return ''
 
-		return self.options[name].val_type
+		return opt.val_type
 
 	def get_help(self, name: str) -> str:
 		"""
@@ -151,11 +163,12 @@ class BaseConfig(ABC):
 		:param name:
 		:return:
 		"""
-		if name not in self.options:
+		opt = self.get_config(name)
+		if opt is None:
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return ''
 
-		return self.options[name].help
+		return opt.help
 
 	def get_options(self, name: str):
 		"""
@@ -164,11 +177,12 @@ class BaseConfig(ABC):
 		:param name:
 		:return:
 		"""
-		if name not in self.options:
+		opt = self.get_config(name)
+		if opt is None:
 			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
 			return None
 
-		return self.options[name].options
+		return opt.options
 
 	def exists(self) -> bool:
 		"""
