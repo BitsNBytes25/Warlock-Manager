@@ -23,7 +23,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Determine Target Release Branch
+      - name: Determine Source and Target Branches
         run: |
           # github.ref_name gives us the tag (e.g., 'v1.2.3')
           TAG_NAME="${{ github.ref_name }}"
@@ -34,24 +34,46 @@ jobs:
           # Construct the target branch name
           TARGET_BRANCH="release-$VERSION_PREFIX"
           
-          echo "Detected Tag: $TAG_NAME"
-          echo "Target Branch: $TARGET_BRANCH"
+          Get the commit hash that the tag points to
+          COMMIT_HASH=$(git rev-parse $TAG_NAME)
           
-          # Save it to the GITHUB_ENV so later steps can use it via $TARGET_BRANCH
+          # Find all remote branches containing this commit
+          # We filter out 'HEAD', the tag itself, and strip the 'origin/' prefix
+          # We take the first result (head -n 1) as our candidate source branch
+          SOURCE_BRANCH=$(git branch -r --contains $COMMIT_HASH | \
+            grep -v 'HEAD' | \
+            grep -v 'tags/' | \
+            sed 's|origin/||' | \
+            head -n 1)
+          
+          # Fallback to main if no specific branch is found (safety net)
+          if [ -z "$SOURCE_BRANCH" ]; then
+            SOURCE_BRANCH="main"
+          fi
+          
+          echo "Detected Tag: $TAG_NAME"
+          echo "Detected Source Branch: $SOURCE_BRANCH"
+          echo "Target Release Branch: $TARGET_BRANCH"
+          
+          # Save both to GITHUB_ENV
           echo "TARGET_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
+          echo "SOURCE_BRANCH=$SOURCE_BRANCH" >> $GITHUB_ENV
 
       - name: Merge main into release branch
         run: |
           # Fetch all branches
           git fetch origin
           
+          # Checkout source branch so we have it locally
+          git checkout $SOURCE_BRANCH
+          
           # Use the variable we created in the previous step
           # We use 'git checkout' on the target branch.
           # Attempt to checkout, if it fails, create it from main
-          git checkout $TARGET_BRANCH || (git checkout -b $TARGET_BRANCH origin/main)
+          git checkout $TARGET_BRANCH || (git checkout -b $TARGET_BRANCH origin/SOURCE_BRANCH)
           
-          # Merge main into the release branch
-          git merge origin/main --no-edit
+          # Merge SOURCE into the release branch
+          git merge $SOURCE_BRANCH --no-edit
 
           # Push the changes back to GitHub
           git push origin $TARGET_BRANCH
