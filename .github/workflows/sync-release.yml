@@ -73,7 +73,7 @@ jobs:
           git checkout $TARGET_BRANCH || (git checkout -b $TARGET_BRANCH origin/SOURCE_BRANCH)
           
           # Merge SOURCE into the release branch
-          git merge $SOURCE_BRANCH --no-edit
+          git merge $SOURCE_BRANCH --no-edit --allow-unrelated-histories
 
           # Push the changes back to GitHub
           git push origin $TARGET_BRANCH
