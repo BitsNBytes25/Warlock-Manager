@@ -10,12 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # Required to push changes back to the repo
+      pull-requests: write # Required to create pull requests
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          fetch-tally: 0 # Fetch all history for merging
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Git
@@ -59,21 +59,21 @@ jobs:
           echo "TARGET_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
           echo "SOURCE_BRANCH=$SOURCE_BRANCH" >> $GITHUB_ENV
 
-      - name: Merge main into release branch
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Fetch all branches
           git fetch origin
           
-          # Checkout source branch so we have it locally
-          git checkout $SOURCE_BRANCH
-          
-          # Use the variable we created in the previous step
-          # We use 'git checkout' on the target branch.
-          # Attempt to checkout, if it fails, create it from main
-          git checkout $TARGET_BRANCH || (git checkout -b $TARGET_BRANCH origin/SOURCE_BRANCH)
-          
-          # Merge SOURCE into the release branch
-          git merge $SOURCE_BRANCH --no-edit --allow-unrelated-histories
-
-          # Push the changes back to GitHub
-          git push origin $TARGET_BRANCH
+          # Check if this branch exists in the first place.
+          if ! git ls-remote --heads origin "$TARGET_BRANCH"; then
+            echo "Target branch $TARGET_BRANCH does not exist. Creating it from $SOURCE_BRANCH..."
+            git checkout -b "$TARGET_BRANCH" "origin/$SOURCE_BRANCH"
+            git push origin "$TARGET_BRANCH"
+          else
+            # Create a pull request from the source branch to the target branch
+            gh pr create \
+              --base $TARGET_BRANCH \
+              --head $SOURCE_BRANCH \
+              --title "Merge $SOURCE_BRANCH into $TARGET_BRANCH" \
+              --body "Automated pull request to sync changes from $SOURCE_BRANCH to $TARGET_BRANCH"
