@@ -1227,6 +1227,18 @@ class BaseService(ABC):
 			'loader': self.get_loader(),
 		}
 
+	def build_environment_file(self):
+		"""
+		Build the environment file for this service
+
+		:return:
+		"""
+		with open(self._env_file, 'w') as f:
+			env = self.get_environment()
+			for key in env:
+				f.write('%s=%s\n' % (key, env[key]))
+		self.game.ensure_file_ownership(self._env_file)
+
 	def build_systemd_config(self):
 		"""
 		Build and save the systemd service file for this service
@@ -1249,12 +1261,8 @@ class BaseService(ABC):
 		logging.info('Created systemd service file for %s at %s' % (self.service, self._service_file))
 
 		# Save the environmental variable file for this service
-		with open(self._env_file, 'w') as f:
-			env = self.get_environment()
-			for key in env:
-				f.write('%s=%s\n' % (key, env[key]))
+		self.build_environment_file()
 		logging.info('Created environment file for %s at %s' % (self.service, self._env_file))
-		self.game.ensure_file_ownership(self._env_file)
 
 		# Grab the ports from this service and try to automatically update them to the next available port
 		# NOTICE, this will only check against services within this same game,

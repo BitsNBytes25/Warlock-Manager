@@ -21,6 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.2] - 2026-04-18
+
+### Added
+
+- Add BaseService.build_environment_file for generating environment files for services
+
+### Changed
+
+- Extend SteamApp to include native support for 'Steam Branch' and 'Steam Branch Password' options
+
+
 ## [2.2.1] - 2026-04-17
 
 ### Changed

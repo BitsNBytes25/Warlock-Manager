@@ -6,7 +6,8 @@ from abc import ABC
 import logging
 
 from .base_app import BaseApp
-from ..libs.cmd import Cmd
+from warlock_manager.libs.cmd import Cmd
+from warlock_manager.libs import utils
 
 
 def guess_steamcmd_path() -> str:
@@ -209,7 +210,12 @@ def steamcmd_parse_manifest(manifest_content):
 
 class SteamApp(BaseApp, ABC):
 	"""
-	Game application manager
+	Game application manager for Steam-based games
+
+	Expects the game to have the following configuration keys:
+
+	* Steam Branch - Branch to install the game from (default: public)
+	* Steam Branch Password - Password for the Steam branch (optional)
 	"""
 
 	def __init__(self):
@@ -262,7 +268,7 @@ class SteamApp(BaseApp, ABC):
 
 		# Run the steamcmd command
 		cmd = Cmd(command)
-		cmd.sudo(self.get_app_uid())
+		cmd.sudo(utils.get_app_uid())
 		cmd.is_cacheable()
 
 		# Output from command should be Steam manifest format, parse it
@@ -293,13 +299,38 @@ class SteamApp(BaseApp, ABC):
 
 		return list(info['depots']['branches'].keys())
 
+	def option_value_updated(self, option: str, previous_value, new_value):
+		"""
+		Handle any special actions needed when an option value is updated
+
+		:param option:
+		:param previous_value:
+		:param new_value:
+		:return:
+		"""
+		if option == 'Steam Branch':
+			# If the steam branch is updated, update the game binaries automatically.
+			self.update()
+
+	def get_option_options(self, option: str):
+		"""
+		Get the list of possible options for a configuration option
+		:param option:
+		:return:
+		"""
+		if option == 'Steam Branch':
+			# Steam branch should be pulled automatically from Steam
+			return self.get_steam_branches()
+		else:
+			return super().get_option_options(option)
+
 	def check_update_available(self) -> bool:
 		"""
 		Check if a SteamCMD update is available for this game
 
 		:return:
 		"""
-		app_manifest = os.path.join(self.get_app_directory(), 'AppFiles', 'steamapps', 'appmanifest_%s.acf' % self.steam_id)
+		app_manifest = os.path.join(utils.get_app_directory(), 'AppFiles', 'steamapps', 'appmanifest_%s.acf' % self.steam_id)
 
 		if not os.path.exists(app_manifest):
 			print(f"App manifest file {app_manifest} does not exist.", file=sys.stderr)
@@ -377,21 +408,24 @@ class SteamApp(BaseApp, ABC):
 		cmd = Cmd([
 			guess_steamcmd_path(),
 			'+force_install_dir',
-			os.path.join(self.get_app_directory(), 'AppFiles'),
+			os.path.join(utils.get_app_directory(), 'AppFiles'),
 			'+login',
 			'anonymous',
 			'+app_update',
 			self.steam_id,
 		])
-		cmd.sudo(self.get_app_uid())
+		cmd.sudo(utils.get_app_uid())
 		cmd.stream_output()
 
-		if self.steam_branch != 'public':
+		branch = self.get_option_value('Steam Branch')
+		branch_password = self.get_option_value('Steam Branch Password')
+
+		if branch != 'public':
 			cmd.append('-beta')
-			cmd.append(self.steam_branch)
-			if self.steam_branch_password != '':
+			cmd.append(branch)
+			if branch_password != '':
 				cmd.append('-betapassword')
-				cmd.append(self.steam_branch_password)
+				cmd.append(branch_password)
 
 		cmd.append('validate')
 		cmd.append('+quit')
