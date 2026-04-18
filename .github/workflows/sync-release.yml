@@ -77,3 +77,4 @@ jobs:
               --head $SOURCE_BRANCH \
               --title "Merge $SOURCE_BRANCH into $TARGET_BRANCH" \
               --body "Automated pull request to sync changes from $SOURCE_BRANCH to $TARGET_BRANCH"
+          fi
