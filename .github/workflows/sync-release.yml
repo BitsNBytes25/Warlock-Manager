@@ -34,7 +34,7 @@ jobs:
           # Construct the target branch name
           TARGET_BRANCH="release-$VERSION_PREFIX"
           
-          Get the commit hash that the tag points to
+          # Get the commit hash that the tag points to
           COMMIT_HASH=$(git rev-parse $TAG_NAME)
           
           # Find all remote branches containing this commit
