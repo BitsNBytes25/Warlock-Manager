@@ -69,7 +69,8 @@ function install_warlock_manager() {
 	"source": "github",
 	"repo": "${REPO}",
 	"branch": "${BRANCH}",
-	"commit": "${MANAGER_SHA}"
+	"commit": "${MANAGER_SHA}",
+	"game": "${WARLOCK_GUID}"
 }
 EOF
 	chown $GAME_USER:$GAME_USER "$GAME_DIR/.manage.json"
@@ -83,10 +84,6 @@ EOF
 	# Most games use .settings.ini for manager settings
 	touch "$GAME_DIR/.settings.ini"
 	chown $GAME_USER:$GAME_USER "$GAME_DIR/.settings.ini"
-
-	# Save the Warlock GUID so the manager knows what game this is
-	echo -n "$WARLOCK_GUID" > "$GAME_DIR/.warlock.guid"
-	chown $GAME_USER:$GAME_USER "$GAME_DIR/.warlock.guid"
 
 	# A python virtual environment is now required by Warlock-based managers.
 	sudo -u $GAME_USER python3 -m venv "$GAME_DIR/.venv"
