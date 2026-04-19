@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -33,10 +34,11 @@ class Nexus:
 			with open(self.email_file, 'r') as f:
 				self.email = f.read().strip()
 
-		guid_path = os.path.join(get_app_directory(), '.warlock.guid')
-		if os.path.exists(guid_path):
-			with open(guid_path, 'r') as f:
-				self.game = f.read().strip()
+		manager_meta_path = os.path.join(get_app_directory(), '.manage.json')
+		if os.path.exists(manager_meta_path):
+			with open(manager_meta_path, 'r') as f:
+				meta = json.load(f)
+				self.game = meta['game']
 
 	def set_email(self, email: str):
 		"""

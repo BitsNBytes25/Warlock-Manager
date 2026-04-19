@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.4] - 2026-04-18
+
+### Changed
+
+- Move .warlock.guid to .manage.json with the rest of the meta values
+
+
 ## [2.2.3] - 2026-04-18
 
 ### Removed
@@ -273,6 +280,9 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.4]: https://pypi.org/project/warlock-manager/2.2.4
+[2.2.3]: https://pypi.org/project/warlock-manager/2.2.3
+[2.2.2]: https://pypi.org/project/warlock-manager/2.2.2
 [2.2.1]: https://pypi.org/project/warlock-manager/2.2.1
 [2.2.0]: https://pypi.org/project/warlock-manager/2.2.0
 [2.1.2]: https://pypi.org/project/warlock-manager/2.1.2
