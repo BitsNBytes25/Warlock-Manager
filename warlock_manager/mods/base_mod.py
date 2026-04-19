@@ -264,6 +264,10 @@ class BaseMod:
 		:param mods:
 		:return:
 		"""
+		mods_directory = os.path.join(utils.get_app_directory(), 'Packages')
+		if not os.path.exists(mods_directory):
+			utils.makedirs(mods_directory)
+
 		mods_path = os.path.join(utils.get_app_directory(), 'Packages', 'mods.json')
 
 		flat_mods = []

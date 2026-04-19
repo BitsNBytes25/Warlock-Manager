@@ -21,6 +21,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.5] - 2026-04-
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+- Minor fix on mod lookup to ensure the Packages directory exists
+
+### Security
+
+
 ## [2.2.4] - 2026-04-18
 
 ### Changed
@@ -280,6 +297,7 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.5]: https://pypi.org/project/warlock-manager/2.2.5
 [2.2.4]: https://pypi.org/project/warlock-manager/2.2.4
 [2.2.3]: https://pypi.org/project/warlock-manager/2.2.3
 [2.2.2]: https://pypi.org/project/warlock-manager/2.2.2
