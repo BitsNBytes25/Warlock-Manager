@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.3] - 2026-04-18
+
+### Removed
+
+- Remove auto-update from SteamApp when 'Steam Branch' is changed.  Worked, but caused more issues than it solved
+
+
 ## [2.2.2] - 2026-04-18
 
 ### Added
