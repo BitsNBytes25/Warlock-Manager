@@ -299,19 +299,6 @@ class SteamApp(BaseApp, ABC):
 
 		return list(info['depots']['branches'].keys())
 
-	def option_value_updated(self, option: str, previous_value, new_value):
-		"""
-		Handle any special actions needed when an option value is updated
-
-		:param option:
-		:param previous_value:
-		:param new_value:
-		:return:
-		"""
-		if option == 'Steam Branch':
-			# If the steam branch is updated, update the game binaries automatically.
-			self.update()
-
 	def get_option_options(self, option: str):
 		"""
 		Get the list of possible options for a configuration option
