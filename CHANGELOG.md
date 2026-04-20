@@ -290,6 +290,7 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.2.5**: Fixes for Unreal INI configurations
 - **v2.2.1**: Minor bug fixes
 - **v2.2.0**: More advanced mod support and support for Warlock.Nexus
 - **v2.1.2**: Add support for mod management in the CLI application
