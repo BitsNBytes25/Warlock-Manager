@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Minor fix on mod lookup to ensure the Packages directory exists
+- Fix Unreal INI configuration files for get_value and set_value
 
 ### Security
 

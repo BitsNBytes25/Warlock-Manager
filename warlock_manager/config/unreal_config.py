@@ -12,9 +12,64 @@ class UnrealConfig(BaseConfig):
 		super().__init__(group_name)
 		self.path = path
 		self._data = []
-		self._values = {}
 		self._use_array_operators = False
 		self._is_changed = False
+		self.always_escape_strings = False
+		"""
+		Set to True to always escape strings in Configuration files.  Some games require this.
+		"""
+
+	def _get_raw_value(self, name: str):
+		"""
+		Get the raw value, possibly in a nested dictionary.
+
+		useful for get_value and has_value.
+
+		:param name: Name of the option
+		:return:
+		"""
+		if name not in self.options:
+			return None
+		opt = self.options[name]
+
+		# Check if this section exists, also serves to find the section.
+		section = None
+		for sec in self._data:
+			if sec[0]['type'] == 'section' and sec[0]['value'] == opt.section:
+				section = sec[1:]
+				break
+		if section is None:
+			return None
+
+		if '/' in opt.key:
+			# Look for a key inside structured data (aka a dict)
+			group = opt.key.split('/')[0]
+			for sec in section:
+				if sec['key'] == group:
+					current = sec['value']
+					for part in opt.key.split('/')[1:]:
+						if part in current:
+							current = current[part]
+						else:
+							# Subkey does not exist in the value of this section config; doesn't exist.
+							return None
+					return current
+		else:
+			# Simple key.
+			ret = None
+			for sec in section:
+				if sec['type'] == 'keyvalue' and sec['key'] == opt.key:
+					# Unreal supports duplicate keys; these should be exposed as a list.
+					if ret is None:
+						ret = sec['value']
+					elif isinstance(ret, list):
+						ret.append(sec['value'])
+					else:
+						ret = [ret]
+						ret.append(sec['value'])
+			return ret
+
+		return None
 
 	def get_value(self, name: str) -> Union[str, int, bool, list]:
 		"""
@@ -28,27 +83,11 @@ class UnrealConfig(BaseConfig):
 			return ''
 
 		opt = self.options[name]
-
-		if opt.section not in self._values:
-			val = opt.default
+		raw_value = self._get_raw_value(name)
+		if raw_value is None:
+			return opt.default
 		else:
-			if '/' in opt.key:
-				# Struct key
-				parts = opt.key.split('/')
-				current = self._values[opt.section]
-				for part in parts:
-					if part in current:
-						current = current[part]
-					else:
-						current = opt.default
-						break
-				val = current
-			elif opt.key not in self._values[opt.section]:
-				val = opt.default
-			else:
-				val = self._values[opt.section][opt.key]
-
-		return opt.to_system_type(val)
+			return opt.to_system_type(raw_value)
 
 	def _find_or_create_value(self, section: list, key: str, str_value: Union[str, list]) -> list:
 		"""
@@ -136,9 +175,14 @@ class UnrealConfig(BaseConfig):
 		opt = self.options[name]
 		str_value = self.from_system_type(name, value)
 
-		if opt.section not in self._values:
+		# Create the section if necessary
+		exists = False
+		for sec in self._data:
+			if sec[0]['type'] == 'section' and sec[0]['value'] == opt.section:
+				exists = True
+				break
+		if not exists:
 			# Create the section
-			self._values[opt.section] = {}
 			self._data.append([{'type': 'section', 'value': opt.section}])
 
 		# Ensure the updated value is in the data structure
@@ -157,7 +201,6 @@ class UnrealConfig(BaseConfig):
 				new_data.append(sec)
 
 		self._data = new_data
-		self._values[opt.section][opt.key] = str_value
 		self._is_changed = True
 
 	def has_value(self, name: str) -> bool:
@@ -167,17 +210,8 @@ class UnrealConfig(BaseConfig):
 		:param name: Name of the option
 		:return:
 		"""
-		if name not in self.options:
-			return False
-		opt = self.options[name]
-
-		if opt.section not in self._values:
-			return False
-		else:
-			if opt.key not in self._values[opt.section]:
-				return False
-			else:
-				return self._values[opt.section][opt.key] != ''
+		raw_value = self._get_raw_value(name)
+		return raw_value is not None
 
 	def exists(self) -> bool:
 		"""
@@ -194,7 +228,6 @@ class UnrealConfig(BaseConfig):
 		if os.path.exists(self.path):
 			with open(self.path, 'r', encoding='utf-8') as f:
 				section = []
-				last_section = ''
 				for line in f.readlines():
 					data = None
 					stripped = line.strip()
@@ -232,27 +265,6 @@ class UnrealConfig(BaseConfig):
 								self._data.append(section)
 							section = []
 							section.append(data)
-							last_section = data['value']
-						elif data['type'] == 'keystruct':
-							section.append(data)
-							if last_section not in self._values:
-								self._values[last_section] = {}
-							self._values[last_section][data['key']] = data['value']
-						elif data['type'] == 'keyvalue':
-							section.append(data)
-							if last_section not in self._values:
-								self._values[last_section] = {}
-							# Auto-handle duplicate keys by converting them to a list.
-							# UE is weird.
-							if data['key'] in self._values[last_section]:
-								# Existing key, convert to list
-								existing_value = self._values[last_section][data['key']]
-								if not isinstance(existing_value, list):
-									existing_value = [existing_value]
-								existing_value.append(data['value'])
-								self._values[last_section][data['key']] = existing_value
-							else:
-								self._values[last_section][data['key']] = data['value']
 						else:
 							section.append(data)
 				if len(section) > 0:
@@ -288,6 +300,10 @@ class UnrealConfig(BaseConfig):
 		if s == 'True' or s == 'False':
 			# Boolean strings do not require quoting
 			return False
+
+		if self.always_escape_strings:
+			# Game requested to always escape strings
+			return True
 
 		if re.match(r'^[A-Za-z0-9]+$', s) is not None:
 			# Simple strings do not require quoting
