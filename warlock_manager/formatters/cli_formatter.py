@@ -10,6 +10,48 @@ def cli_formatter(
     true_value: str | bool = 'True',
     false_value: str | bool = 'False',
 ) -> str:
+    """
+    Format a given Configuration object as CLI arguments.
+
+    ## True/False Formatting
+
+    The most complicated part of this is handling true/false boolean values.
+
+    The default is to render bool TRUE values as -key_name=True and bool FALSE values as -key_name=False
+
+    Render bool TRUE values as -key_name and bool FALSE values are omitted completely
+
+    ```python
+    cli_formatter(..., prefix='-', true_value=True, false_value=False)
+    ```
+
+    The inverse is possible too, to omit TRUE values and only render FALSE values.
+
+    ```python
+    cli_formatter(..., prefix='-', true_value=False, false_value=True)
+    ```
+
+    Render bool TRUE values as -key_name=true and bool FALSE values as -key_name=false
+
+    ```python
+    cli_formatter(..., prefix='-', true_value='true', false_value='false')
+    ```
+
+    Render bool TRUE values as ?key_name:YUP and bool FALSE values as ?key_name:LULZNOPE
+
+    ```python
+    cli_formatter(..., prefix='?', sep=':', true_value='YUP', false_value='LULZNOPE')
+    ```
+
+    :param data:
+    :param section:
+    :param prefix:
+    :param sep:
+    :param joiner:
+    :param true_value:
+    :param false_value:
+    :return:
+    """
     values = []
     for opt in data.options.values():
         if opt.section != section:
