@@ -1274,13 +1274,23 @@ class BaseService(ABC):
 				continue
 
 			port = self.get_option_value(port_config[0])
+			port_default = self.get_option_default(port_config[0])
 			if port == 0:
 				# This port does not have a default value, probably not enabled by default.
 				continue
 			new_port = self.game.get_next_available_port(self, port, port_config[1])
 
+			if port_default == new_port:
+				# New installations where the default port may not trigger the 'change' logic
+				# as the port _technically_ didn't change, therefore the firewall rules won't be added.
+				logging.info('Setting %s to 0 to force firewall change' % port_config[0])
+				self.set_option(port_config[0], 0)
+
 			self.set_option(port_config[0], new_port)
-			logging.info('Set %s to %s to try to avoid conflicts' % (port_config[0], new_port))
+			if new_port != port:
+				logging.info('Set %s to %s to try to avoid conflicts' % (port_config[0], new_port))
+			else:
+				logging.info('Set %s to %s' % (port_config[0], new_port))
 
 		# Reload systemd to pick up the new service
 		self.reload()

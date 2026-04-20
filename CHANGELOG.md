@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Firewall commands now return bool on rule changes and no longer raise exceptions
+- Firewall commands now check if the port is valid before attempting to change it
+- BaseService.create_service sets the port to 0 initially to force a firewall change
+
 ### Deprecated
 
 ### Removed
