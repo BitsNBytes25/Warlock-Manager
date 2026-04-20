@@ -195,7 +195,7 @@ class BaseMod:
 			logging.error('Mod install package not found!')
 			return False
 
-		target_archive = os.path.join(utils.get_app_directory(), 'Packages', self.package)
+		target_archive = os.path.join(utils.get_base_directory(), 'Packages', self.package)
 		if not os.path.exists(target_archive):
 			download_file(self.source, target_archive)
 		else:
@@ -242,7 +242,7 @@ class BaseMod:
 		Get all registered mods, eg all mods which are present in the registration file
 		:return:
 		"""
-		mods_path = os.path.join(utils.get_app_directory(), 'Packages', 'mods.json')
+		mods_path = os.path.join(utils.get_base_directory(), 'Packages', 'mods.json')
 		if not os.path.exists(mods_path):
 			# No mods installed; mods cache is empty.
 			return []
@@ -264,11 +264,11 @@ class BaseMod:
 		:param mods:
 		:return:
 		"""
-		mods_directory = os.path.join(utils.get_app_directory(), 'Packages')
+		mods_directory = os.path.join(utils.get_base_directory(), 'Packages')
 		if not os.path.exists(mods_directory):
 			utils.makedirs(mods_directory)
 
-		mods_path = os.path.join(utils.get_app_directory(), 'Packages', 'mods.json')
+		mods_path = os.path.join(utils.get_base_directory(), 'Packages', 'mods.json')
 
 		flat_mods = []
 		for mod in mods:

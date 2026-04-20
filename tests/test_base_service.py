@@ -61,4 +61,4 @@ class TestBaseService(unittest.TestCase):
 			self.assertIn('Type=simple', data_new)
 			self.assertIn('ExecStart=%s' % svc.get_executable(), data_new)
 			self.assertIn('WorkingDirectory=%s' % svc.get_app_directory(), data_new)
-			self.assertIn('EnvironmentFile=%s/Environments/%s.env' % (utils.get_app_directory(), svc.service), data_new)
+			self.assertIn('EnvironmentFile=%s/Environments/%s.env' % (utils.get_base_directory(), svc.service), data_new)

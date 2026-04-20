@@ -21,9 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
-## [2.2.5] - 2026-04-
+## [2.2.5] - 2026-04-20
 
 ### Added
+
+- Add utils.get_base_directory to reduce confusion between app and base directories
 
 ### Changed
 
@@ -33,14 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
-### Removed
+- utils.get_app_directory is deprecated in favor of utils.get_base_directory
 
 ### Fixed
 
 - Minor fix on mod lookup to ensure the Packages directory exists
 - Fix Unreal INI configuration files for get_value and set_value
-
-### Security
 
 
 ## [2.2.4] - 2026-04-18

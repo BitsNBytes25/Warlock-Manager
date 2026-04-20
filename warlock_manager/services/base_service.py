@@ -49,7 +49,7 @@ class BaseService(ABC):
 		used for checking existence and loading configuration options from the file
 		"""
 
-		self._env_file = os.path.join(utils.get_app_directory(), 'Environments', '%s.env' % service)
+		self._env_file = os.path.join(utils.get_base_directory(), 'Environments', '%s.env' % service)
 		"""
 		:type str:
 		Fully resolved path on the filesystem for the environmental variable for this service
@@ -1725,14 +1725,14 @@ class BaseService(ABC):
 				utils.makedirs(target_file)
 			elif source == '@':
 				# Source is the package itself; this just copies the entire mod into the destination.
-				source_file = os.path.join(utils.get_app_directory(), 'Packages', mod.package)
+				source_file = os.path.join(utils.get_base_directory(), 'Packages', mod.package)
 				logging.info('Copying %s -> %s' % (source_file, target_file))
 				shutil.copy(source_file, target_file)
 				utils.ensure_file_ownership(target_file)
 			elif source.startswith('@:'):
 				# Source is a file within the package, (usually a ZIP archive)
 				source_file = source[2:]
-				source_archive = os.path.join(utils.get_app_directory(), 'Packages', mod.package)
+				source_archive = os.path.join(utils.get_base_directory(), 'Packages', mod.package)
 				if source_archive.endswith('.zip'):
 					logging.info('Extracting %s -> %s' % (source_file, target_file))
 					with ZipFile(source_archive, 'r') as zip_ref:
