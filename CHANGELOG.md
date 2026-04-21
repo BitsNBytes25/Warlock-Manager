@@ -21,25 +21,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
-## [2.2.6] - 2026-04-xx
+## [2.2.6] - 2026-04-21
 
 ### Added
 
 - Cmd now supports setting cwd to set the current working directory for the command
+- Add PipeCmd for piping output from commands
 
 ### Changed
 
 - Various Cmd calls now return Cmd to allow chaining for simple calls
 
-### Deprecated
-
-### Removed
-
 ### Fixed
 
 - Fix UFW using lowercase for UDP/TCP names
-
-### Security
 
 
 ## [2.2.5] - 2026-04-20
@@ -311,6 +306,7 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.2.6**: Fixes to Firewall and Cmd libraries
 - **v2.2.5**: Fixes for Unreal INI configurations
 - **v2.2.1**: Minor bug fixes
 - **v2.2.0**: More advanced mod support and support for Warlock.Nexus
@@ -324,6 +320,7 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.6]: https://pypi.org/project/warlock-manager/2.2.6
 [2.2.5]: https://pypi.org/project/warlock-manager/2.2.5
 [2.2.4]: https://pypi.org/project/warlock-manager/2.2.4
 [2.2.3]: https://pypi.org/project/warlock-manager/2.2.3
