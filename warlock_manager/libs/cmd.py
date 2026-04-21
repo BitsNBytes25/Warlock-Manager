@@ -3,6 +3,7 @@ import subprocess
 import json
 import logging
 import time
+import pwd
 
 from warlock_manager.libs import cache
 
@@ -83,7 +84,10 @@ class Cmd:
 		:return:
 		"""
 		if isinstance(runas, str):
-			if os.getlogin() == runas:
+			# Get the name of the user owning the current process
+			# use pwd instead of os.getlogin to address CI tests on 3.13
+			current_user = pwd.getpwuid(os.geteuid()).pw_name
+			if current_user == runas:
 				# If we're already running as this user, no need to prefix with sudo
 				return self
 			prefix = ['sudo', '-u', runas]
