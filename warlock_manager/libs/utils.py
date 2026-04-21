@@ -2,9 +2,22 @@ import logging
 import os
 import pwd
 import sys
+from typing_extensions import deprecated
 
 
+@deprecated('Please use utils.get_base_directory instead to avoid confusion')
 def get_app_directory() -> str:
+	"""
+	Get the base directory for this game installation.
+
+	This directory usually will contain manage.py, AppFiles, Backups, and other related files.
+
+	:return:
+	"""
+	return os.path.dirname(os.path.realpath(sys.argv[0]))
+
+
+def get_base_directory() -> str:
 	"""
 	Get the base directory for this game installation.
 

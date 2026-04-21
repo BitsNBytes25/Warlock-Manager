@@ -275,6 +275,12 @@ class Nexus:
 			'X-Host-Token': self.host_auth,
 		}
 
+		if self.game is None:
+			return {
+				'success': False,
+				'message': 'Game not set',
+			}
+
 		try:
 			url = self.base_url + '/mod/search/' + self.game
 			params = {
@@ -305,6 +311,12 @@ class Nexus:
 		headers = {
 			'X-Host-Token': self.host_auth,
 		}
+
+		if self.game is None:
+			return {
+				'success': False,
+				'message': 'Game not set',
+			}
 
 		try:
 			url = self.base_url + '/mod/get/' + self.game + '/' + str(provider) + '/' + str(mod_id)

@@ -23,32 +23,32 @@ class TestUnrealConfig(unittest.TestCase):
         cfg = UnrealConfig('test', os.path.join(here, 'data', 'unreal_simple.ini'))
         # Configs are grouped by named parameters, so let's add some options
         cfg.add_option({
-            'name': 'Key1',
+            'name': 'Key 1',
             'section': 'SomeSection',
             'key': 'Key1',
         })
         cfg.add_option({
-            'name': 'Key2',
+            'name': 'Key 2',
             'section': 'SomeSection',
             'key': 'Key2',
             'type': 'int'
         })
         cfg.add_option({
-            'name': 'Key3',
+            'name': 'Key 3',
             'section': 'SomeSection',
             'key': 'Key3',
             'type': 'bool'
         })
         cfg.load()
 
-        self.assertEqual(cfg.get_value('Key1'), 'Value1')
-        self.assertEqual(cfg.get_value('Key2'), 42)
-        self.assertEqual(cfg.get_value('Key3'), True)
+        self.assertEqual(cfg.get_value('Key 1'), 'Value1')
+        self.assertEqual(cfg.get_value('Key 2'), 42)
+        self.assertEqual(cfg.get_value('Key 3'), True)
 
         # These values should exist
-        self.assertTrue(cfg.has_value('Key1'))
-        self.assertTrue(cfg.has_value('Key2'))
-        self.assertTrue(cfg.has_value('Key3'))
+        self.assertTrue(cfg.has_value('Key 1'))
+        self.assertTrue(cfg.has_value('Key 2'))
+        self.assertTrue(cfg.has_value('Key 3'))
 
         # This value should not
         self.assertFalse(cfg.has_value('NonExistentKey'))
@@ -58,14 +58,14 @@ class TestUnrealConfig(unittest.TestCase):
             expected = f.read()
         self.assertEqual(expected, cfg.fetch())
 
-        cfg.set_value('Key1', 'NewValue')
-        self.assertEqual(cfg.get_value('Key1'), 'NewValue')
+        cfg.set_value('Key 1', 'NewValue')
+        self.assertEqual(cfg.get_value('Key 1'), 'NewValue')
 
-        cfg.set_value('Key2', 100)
-        self.assertEqual(cfg.get_value('Key2'), 100)
+        cfg.set_value('Key 2', 100)
+        self.assertEqual(cfg.get_value('Key 2'), 100)
 
-        cfg.set_value('Key3', False)
-        self.assertEqual(cfg.get_value('Key3'), False)
+        cfg.set_value('Key 3', False)
+        self.assertEqual(cfg.get_value('Key 3'), False)
 
         # Ensure the generated data matches expectations
         expected = '''; This is a simple config file for testing purposes.
@@ -78,6 +78,61 @@ Key2=100
 ; This key is a boolean value
 Key3=False
 '''
+        self.assertEqual(expected, cfg.fetch())
+
+    def test_always_escape_strings(self):
+        cfg = UnrealConfig('test', os.path.join(here, 'data', 'unreal_simple.ini'))
+        cfg.always_escape_strings = True
+        # Configs are grouped by named parameters, so let's add some options
+        cfg.add_option({
+            'name': 'Key 1',
+            'section': 'SomeSection',
+            'key': 'Group/Key1',
+        })
+        cfg.add_option({
+            'name': 'Key 2',
+            'section': 'SomeSection',
+            'key': 'Group/Key2',
+            'type': 'int'
+        })
+        cfg.add_option({
+            'name': 'Key 3',
+            'section': 'SomeSection',
+            'key': 'Group/Key3',
+            'type': 'bool'
+        })
+
+        cfg.set_value('Key 1', 'Value1')
+        cfg.set_value('Key 2', 42)
+        cfg.set_value('Key 3', True)
+
+        self.assertEqual(cfg.get_value('Key 1'), 'Value1')
+        self.assertEqual(cfg.get_value('Key 2'), 42)
+        self.assertEqual(cfg.get_value('Key 3'), True)
+
+        # These values should exist
+        self.assertTrue(cfg.has_value('Key 1'))
+        self.assertTrue(cfg.has_value('Key 2'))
+        self.assertTrue(cfg.has_value('Key 3'))
+
+        # This value should not
+        self.assertFalse(cfg.has_value('NonExistentKey'))
+
+        # Ensure the generated data matches expectations
+        expected = '[SomeSection]\nGroup=(Key1="Value1",Key2=42,Key3=True)\n'
+        self.assertEqual(expected, cfg.fetch())
+
+        cfg.set_value('Key 1', 'NewValue')
+        self.assertEqual(cfg.get_value('Key 1'), 'NewValue')
+
+        cfg.set_value('Key 2', 100)
+        self.assertEqual(cfg.get_value('Key 2'), 100)
+
+        cfg.set_value('Key 3', False)
+        self.assertEqual(cfg.get_value('Key 3'), False)
+
+        # Ensure the generated data matches expectations
+        expected = '[SomeSection]\nGroup=(Key1="NewValue",Key2=100,Key3=False)\n'
         self.assertEqual(expected, cfg.fetch())
 
     def test_simple_create(self):
@@ -247,6 +302,9 @@ PlayedMaps=NewMap2_WP
         })
         cfg.load()
 
+        self.assertTrue(cfg.has_value('Difficulty'))
+        self.assertFalse(cfg.has_value('I do not exist'))
+
         self.assertEqual(cfg.get_value('Difficulty'), 'None')
         self.assertEqual(cfg.get_value('Randomizer Seed'), '')
         self.assertEqual(cfg.get_value('Randomizer Pal Level Random'), False)
@@ -255,6 +313,14 @@ PlayedMaps=NewMap2_WP
         with open(cfg.path, 'r') as f:
             expected = f.read()
         self.assertEqual(expected, cfg.fetch())
+
+        cfg.set_value('Difficulty', 'Super Duper Hard')
+        cfg.set_value('Randomizer Seed', 'Random Seed')
+        cfg.set_value('Randomizer Pal Level Random', True)
+
+        self.assertEqual(cfg.get_value('Difficulty'), 'Super Duper Hard')
+        self.assertEqual(cfg.get_value('Randomizer Seed'), 'Random Seed')
+        self.assertEqual(cfg.get_value('Randomizer Pal Level Random'), True)
 
     def test_palworld_empty(self):
         """

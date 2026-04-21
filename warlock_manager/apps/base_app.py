@@ -88,7 +88,6 @@ class BaseApp(ABC):
 			'api',  # Game supports baseline API features
 			'cmd',  # Game supports commands sent via the API
 			'create_service',  # Game supports creating new services
-			'mods',  # Game supports mods
 		}
 		"""
 		List of features available in this game
@@ -576,7 +575,7 @@ class BaseApp(ABC):
 		except urllib_error.HTTPError as e:
 			print('Could not notify Discord: %s' % e)
 
-	@deprecated("Please use get_app_directory() from utils instead.")
+	@deprecated("Please use get_base_directory() from utils instead.")
 	def get_app_directory(self) -> str:
 		"""
 		Get the base directory for this game installation.
@@ -585,7 +584,7 @@ class BaseApp(ABC):
 
 		:return:
 		"""
-		return utils.get_app_directory()
+		return utils.get_base_directory()
 
 	@deprecated("Please use get_home_directory() from utils instead")
 	def get_home_directory(self) -> str:
@@ -663,8 +662,8 @@ class BaseApp(ABC):
 				logging.info('Removed config file for %s at %s' % (self.name, config.path))
 
 		# Cleanup directory structure
-		shutil.rmtree(os.path.join(utils.get_app_directory(), 'AppFiles'))
-		shutil.rmtree(os.path.join(utils.get_app_directory(), 'Environments'))
+		shutil.rmtree(os.path.join(utils.get_base_directory(), 'AppFiles'))
+		shutil.rmtree(os.path.join(utils.get_base_directory(), 'Environments'))
 
 	def remove_service(self, service_name: str):
 		"""
@@ -689,7 +688,7 @@ class BaseApp(ABC):
 		Try to detect available services for this game.
 		:return:
 		"""
-		envs = os.path.join(utils.get_app_directory(), 'Environments')
+		envs = os.path.join(utils.get_base_directory(), 'Environments')
 		if os.path.exists(envs):
 			# Each service should have a file here, named as {service}.env
 			services = []
@@ -724,9 +723,9 @@ class BaseApp(ABC):
 		"""
 
 		# Ensure some baseline directories exist with the correct ownership and permissions
-		utils.makedirs(os.path.join(utils.get_app_directory(), 'Backups'))
-		utils.makedirs(os.path.join(utils.get_app_directory(), 'AppFiles'))
-		utils.makedirs(os.path.join(utils.get_app_directory(), 'Environments'))
+		utils.makedirs(os.path.join(utils.get_base_directory(), 'Backups'))
+		utils.makedirs(os.path.join(utils.get_base_directory(), 'AppFiles'))
+		utils.makedirs(os.path.join(utils.get_base_directory(), 'Environments'))
 
 		return True
 

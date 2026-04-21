@@ -1,4 +1,5 @@
 from warlock_manager.libs.cmd import Cmd
+import logging
 
 
 class Firewall:
@@ -79,7 +80,7 @@ class Firewall:
 		return None
 
 	@classmethod
-	def allow(cls, port: int, protocol: str = 'tcp', comment: str = None) -> None:
+	def allow(cls, port: int, protocol: str = 'tcp', comment: str = None) -> bool:
 		"""
 		Allows a specific port through the system's firewall.
 		Supports UFW, Firewalld, and iptables.
@@ -90,30 +91,47 @@ class Firewall:
 			comment (str, optional): An optional comment for the rule. Defaults to None.
 		"""
 
+		if port <= 0 or port >= 65536:
+			logging.error(f"Invalid port number: {port}")
+			return False
+
+		if protocol.lower() not in ['tcp', 'udp']:
+			logging.error(f"Invalid protocol: {protocol}")
+			return False
+
 		firewall = cls.get_available()
 
 		if firewall == 'ufw':
+			# UFW requires the protocol to be all lowercase.
+			protocol = protocol.lower()
+			logging.info(f"Allowing {port}/{protocol} via UFW")
 			cmd = Cmd(['ufw', 'allow', f'{port}/{protocol}'])
 			if comment:
 				cmd.extend(['comment', comment])
-			cmd.run()
+			return cmd.success
 
 		elif firewall == 'firewalld':
-			Cmd(['firewall-cmd', '--permanent', '--add-port', f'{port}/{protocol}']).run()
-			Cmd(['firewall-cmd', '--reload']).run()
+			logging.info(f"Allowing {port}/{protocol} via Firewalld")
+			if Cmd(['firewall-cmd', '--permanent', '--add-port', f'{port}/{protocol}']).success:
+				Cmd(['firewall-cmd', '--reload']).run()
+				return True
 
 		elif firewall == 'iptables':
+			logging.info(f"Allowing {port}/{protocol} via iptables")
 			cmd = Cmd(['iptables', '-A', 'INPUT', '-p', protocol, '--dport', str(port), '-j', 'ACCEPT'])
 			if comment:
 				cmd.extend(['-m', 'comment', '--comment', comment])
-			cmd.run()
-			Cmd(['service', 'iptables', 'save']).run()
+			if cmd.success:
+				Cmd(['service', 'iptables', 'save']).run()
+				return True
 
 		else:
-			raise OSError("No supported firewall found on the system.")
+			logging.error('No supported firewall found on the system.')
+
+		return False
 
 	@classmethod
-	def remove(cls, port: int, protocol: str = 'tcp') -> None:
+	def remove(cls, port: int, protocol: str = 'tcp') -> bool:
 		"""
 		Removes a specific port from the system's firewall.
 		Supports UFW, Firewalld, and iptables.
@@ -123,21 +141,33 @@ class Firewall:
 			protocol (str, optional): The protocol to use ('tcp' or 'udp'). Defaults to 'tcp'.
 		"""
 
+		if port <= 0 or port >= 65536:
+			logging.error(f"Invalid port number: {port}")
+			return False
+
+		if protocol.lower() not in ['tcp', 'udp']:
+			logging.error(f"Invalid protocol: {protocol}")
+			return False
+
 		firewall = cls.get_available()
 
 		if firewall == 'ufw':
-			Cmd(['ufw', 'delete', 'allow', f'{port}/{protocol}']).run()
+			return Cmd(['ufw', 'delete', 'allow', f'{port}/{protocol}']).success
 
 		elif firewall == 'firewalld':
-			Cmd(['firewall-cmd', '--permanent', '--remove-port', f'{port}/{protocol}']).run()
-			Cmd(['firewall-cmd', '--reload']).run()
+			if Cmd(['firewall-cmd', '--permanent', '--remove-port', f'{port}/{protocol}']).success:
+				Cmd(['firewall-cmd', '--reload']).run()
+				return True
 
 		elif firewall == 'iptables':
-			Cmd(['iptables', '-D', 'INPUT', '-p', protocol, '--dport', str(port), '-j', 'ACCEPT']).run()
-			Cmd(['service', 'iptables', 'save']).run()
+			if Cmd(['iptables', '-D', 'INPUT', '-p', protocol, '--dport', str(port), '-j', 'ACCEPT']).success:
+				Cmd(['service', 'iptables', 'save']).run()
+				return True
 
 		else:
-			raise OSError("No supported firewall found on the system.")
+			logging.error('No supported firewall found on the system.')
+
+		return False
 
 	@classmethod
 	def is_global_open(cls, port: int, protocol: str = 'tcp') -> bool:
@@ -163,7 +193,8 @@ class Firewall:
 			ufw_check = Cmd(['ufw', 'status'])
 			ufw_check.is_memory_cacheable(3)
 			result = ufw_check.text
-			port_proto = f"{port}/{protocol}"
+			# UFW requires the protocol to be all lowercase.
+			port_proto = f"{port}/{protocol}".lower()
 			for line in result.splitlines():
 				if port_proto in line and "ALLOW" in line and ("Anywhere" in line or "Anywhere (v6)" in line):
 					return True
@@ -188,4 +219,5 @@ class Firewall:
 			return False
 
 		else:
-			raise OSError("No supported firewall found on the system.")
+			logging.error('No supported firewall found on the system.')
+			return True  # No firewall means it's probably enabled by default, so we return true.

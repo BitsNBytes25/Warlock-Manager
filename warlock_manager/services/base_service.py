@@ -49,7 +49,7 @@ class BaseService(ABC):
 		used for checking existence and loading configuration options from the file
 		"""
 
-		self._env_file = os.path.join(utils.get_app_directory(), 'Environments', '%s.env' % service)
+		self._env_file = os.path.join(utils.get_base_directory(), 'Environments', '%s.env' % service)
 		"""
 		:type str:
 		Fully resolved path on the filesystem for the environmental variable for this service
@@ -1274,13 +1274,23 @@ class BaseService(ABC):
 				continue
 
 			port = self.get_option_value(port_config[0])
+			port_default = self.get_option_default(port_config[0])
 			if port == 0:
 				# This port does not have a default value, probably not enabled by default.
 				continue
 			new_port = self.game.get_next_available_port(self, port, port_config[1])
 
+			if port_default == new_port:
+				# New installations where the default port may not trigger the 'change' logic
+				# as the port _technically_ didn't change, therefore the firewall rules won't be added.
+				logging.info('Setting %s to 0 to force firewall change' % port_config[0])
+				self.set_option(port_config[0], 0)
+
 			self.set_option(port_config[0], new_port)
-			logging.info('Set %s to %s to try to avoid conflicts' % (port_config[0], new_port))
+			if new_port != port:
+				logging.info('Set %s to %s to try to avoid conflicts' % (port_config[0], new_port))
+			else:
+				logging.info('Set %s to %s' % (port_config[0], new_port))
 
 		# Reload systemd to pick up the new service
 		self.reload()
@@ -1715,14 +1725,14 @@ class BaseService(ABC):
 				utils.makedirs(target_file)
 			elif source == '@':
 				# Source is the package itself; this just copies the entire mod into the destination.
-				source_file = os.path.join(utils.get_app_directory(), 'Packages', mod.package)
+				source_file = os.path.join(utils.get_base_directory(), 'Packages', mod.package)
 				logging.info('Copying %s -> %s' % (source_file, target_file))
 				shutil.copy(source_file, target_file)
 				utils.ensure_file_ownership(target_file)
 			elif source.startswith('@:'):
 				# Source is a file within the package, (usually a ZIP archive)
 				source_file = source[2:]
-				source_archive = os.path.join(utils.get_app_directory(), 'Packages', mod.package)
+				source_archive = os.path.join(utils.get_base_directory(), 'Packages', mod.package)
 				if source_archive.endswith('.zip'):
 					logging.info('Extracting %s -> %s' % (source_file, target_file))
 					with ZipFile(source_archive, 'r') as zip_ref:

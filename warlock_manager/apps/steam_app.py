@@ -317,7 +317,7 @@ class SteamApp(BaseApp, ABC):
 
 		:return:
 		"""
-		app_manifest = os.path.join(utils.get_app_directory(), 'AppFiles', 'steamapps', 'appmanifest_%s.acf' % self.steam_id)
+		app_manifest = os.path.join(utils.get_base_directory(), 'AppFiles', 'steamapps', 'appmanifest_%s.acf' % self.steam_id)
 
 		if not os.path.exists(app_manifest):
 			print(f"App manifest file {app_manifest} does not exist.", file=sys.stderr)
@@ -395,7 +395,7 @@ class SteamApp(BaseApp, ABC):
 		cmd = Cmd([
 			guess_steamcmd_path(),
 			'+force_install_dir',
-			os.path.join(utils.get_app_directory(), 'AppFiles'),
+			os.path.join(utils.get_base_directory(), 'AppFiles'),
 			'+login',
 			'anonymous',
 			'+app_update',
