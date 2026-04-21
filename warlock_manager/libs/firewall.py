@@ -95,9 +95,15 @@ class Firewall:
 			logging.error(f"Invalid port number: {port}")
 			return False
 
+		if protocol.lower() not in ['tcp', 'udp']:
+			logging.error(f"Invalid protocol: {protocol}")
+			return False
+
 		firewall = cls.get_available()
 
 		if firewall == 'ufw':
+			# UFW requires the protocol to be all lowercase.
+			protocol = protocol.lower()
 			logging.info(f"Allowing {port}/{protocol} via UFW")
 			cmd = Cmd(['ufw', 'allow', f'{port}/{protocol}'])
 			if comment:
@@ -137,6 +143,10 @@ class Firewall:
 
 		if port <= 0 or port >= 65536:
 			logging.error(f"Invalid port number: {port}")
+			return False
+
+		if protocol.lower() not in ['tcp', 'udp']:
+			logging.error(f"Invalid protocol: {protocol}")
 			return False
 
 		firewall = cls.get_available()
@@ -183,7 +193,8 @@ class Firewall:
 			ufw_check = Cmd(['ufw', 'status'])
 			ufw_check.is_memory_cacheable(3)
 			result = ufw_check.text
-			port_proto = f"{port}/{protocol}"
+			# UFW requires the protocol to be all lowercase.
+			port_proto = f"{port}/{protocol}".lower()
 			for line in result.splitlines():
 				if port_proto in line and "ALLOW" in line and ("Anywhere" in line or "Anywhere (v6)" in line):
 					return True

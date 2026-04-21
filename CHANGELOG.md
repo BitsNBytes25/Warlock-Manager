@@ -21,6 +21,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.6] - 2026-04-xx
+
+### Added
+
+- Cmd now supports setting cwd to set the current working directory for the command
+
+### Changed
+
+- Various Cmd calls now return Cmd to allow chaining for simple calls
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+- Fix UFW using lowercase for UDP/TCP names
+
+### Security
+
+
 ## [2.2.5] - 2026-04-20
 
 ### Added

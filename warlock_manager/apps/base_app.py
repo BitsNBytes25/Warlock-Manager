@@ -88,7 +88,6 @@ class BaseApp(ABC):
 			'api',  # Game supports baseline API features
 			'cmd',  # Game supports commands sent via the API
 			'create_service',  # Game supports creating new services
-			'mods',  # Game supports mods
 		}
 		"""
 		List of features available in this game

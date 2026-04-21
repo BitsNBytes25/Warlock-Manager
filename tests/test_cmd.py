@@ -3,16 +3,34 @@ from warlock_manager.libs.cmd import Cmd
 
 
 class TestCmd(unittest.TestCase):
-	def test_exists_true(self):
+	def test_exists(self):
+		"""
+		Test if commands exist and do not exist
+		:return:
+		"""
 		cmd = Cmd(["echo"])
 		self.assertTrue(cmd.exists)
 
-	def test_exists_false(self):
 		cmd = Cmd(["nonexistentbinary12345"])
 		self.assertFalse(cmd.exists)
 		self.assertFalse(cmd.success)
 
+	def test_exists_sudo(self):
+		"""
+		Test exists functionality when used with sudo
+		:return:
+		"""
+		cmd = Cmd(["true"]).sudo('nobody')
+		self.assertTrue(cmd.exists)
+
+		cmd = Cmd(["nonexistentbinary12345"]).sudo('nobody')
+		self.assertFalse(cmd.exists)
+
 	def test_text(self):
+		"""
+		Test that .text returns the output of the command
+		:return:
+		"""
 		cmd = Cmd(["echo", "hello world"])
 		self.assertEqual(cmd.text, "hello world")
 
@@ -41,6 +59,15 @@ class TestCmd(unittest.TestCase):
 		cmd = Cmd(["echo", "notjson"])
 		with self.assertRaises(Exception):
 			_ = cmd.json
+
+	def test_cwd(self):
+		"""
+		Test that the cwd is set and used correctly
+
+		:return:
+		"""
+		cmd = Cmd(["pwd"]).cwd("/tmp")
+		self.assertEqual(cmd.text, "/tmp")
 
 
 if __name__ == "__main__":

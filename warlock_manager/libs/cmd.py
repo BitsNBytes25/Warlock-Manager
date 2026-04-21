@@ -39,7 +39,7 @@ class Cmd:
 		CompletedProcess: The result of the command execution
 		"""
 
-		self.executable: str | None = cmd[0] if len(cmd) > 0 else None
+		self.executable: str | None = self.cmd[0] if len(self.cmd) > 0 else None
 		"""
 		str: The executable name of the command
 		"""
@@ -65,7 +65,12 @@ class Cmd:
 		These commands are NOT persistent across calls!
 		"""
 
-	def sudo(self, runas: str | int):
+		self._cwd: str | None = None
+		"""
+		The current working directory for this command
+		"""
+
+	def sudo(self, runas: str | int) -> 'Cmd':
 		"""
 		Run this command as another user using sudo.
 
@@ -80,53 +85,68 @@ class Cmd:
 		if isinstance(runas, str):
 			if os.getlogin() == runas:
 				# If we're already running as this user, no need to prefix with sudo
-				return
+				return self
 			prefix = ['sudo', '-u', runas]
 		else:
 			if os.geteuid() == runas:
 				# If we're already running as this user, no need to prefix with sudo
-				return
+				return self
 			prefix = ['sudo', '-u', '#%s' % runas]
 
 		self.cmd = prefix + self.cmd
 		self.result = None
+		return self
 
-	def use_stdout(self):
+	def use_stdout(self) -> 'Cmd':
 		"""
 		Set this command to use stdout for output instead of stderr.
 		:return:
 		"""
 		self.uses = 'stdout'
+		return self
 
-	def use_stderr(self):
+	def use_stderr(self) -> 'Cmd':
 		"""
 		Set this command to use stderr for output instead of stdout.
 		:return:
 		"""
 		self.uses = 'stderr'
+		return self
 
-	def stream_output(self):
+	def stream_output(self) -> 'Cmd':
 		"""
 		Set this command to stream to stdout/stderr directly.  Useful for long-running commands.
 		:return:
 		"""
 		self.uses = None
+		return self
 
-	def is_cacheable(self, expires: int = 3600):
+	def is_cacheable(self, expires: int = 3600) -> 'Cmd':
 		"""
 		Set this command as cacheable for N seconds.
 		:param expires:
 		:return:
 		"""
 		self.cacheable = expires
+		return self
 
-	def is_memory_cacheable(self, expires: int = 2):
+	def is_memory_cacheable(self, expires: int = 2) -> 'Cmd':
 		"""
 		Set this command as cacheable in memory for N seconds.
 		:param expires:
 		:return:
 		"""
 		self.memory_cacheable = expires
+		return self
+
+	def cwd(self, path: str | None) -> 'Cmd':
+		"""
+		Set the current working directory for this command.
+		:param path:
+		:return:
+		"""
+		self._cwd = path
+		return self
 
 	@property
 	def exists(self) -> bool:
@@ -230,6 +250,7 @@ class Cmd:
 					self.cmd,
 					capture_output=capture_output,
 					check=False,
+					cwd=self._cwd,
 					encoding='utf-8'
 				)
 			except FileNotFoundError as e:
@@ -265,21 +286,54 @@ class Cmd:
 
 		return self.result
 
-	def extend(self, args: list):
+	def extend(self, args: list) -> 'Cmd':
 		"""
 		Extend the command with additional arguments.
 		:param args:
 		"""
 		self.cmd = self.cmd + args
 		self.result = None
+		return self
 
-	def append(self, arg: str):
+	def append(self, arg: str) -> 'Cmd':
 		"""
 		Append a single argument to the command.
 		:param arg:
 		"""
 		self.cmd.append(arg)
 		self.result = None
+		return self
+
+
+class PipeCmd(Cmd):
+	"""
+	Convenience wrapper for piping command output to a parent process
+	"""
+
+	def run(self):
+		"""
+		Run the command in the background using nohup. Caches the result so subsequent calls don't re-run the command.
+
+		:return:
+		"""
+		if self.result is None:
+
+			if self.cacheable is not False:
+				logging.warning('Piped commands cannot be cached!')
+
+			try:
+				logging.debug('Running piped command: %s' % ' '.join(self.cmd))
+				self.result = subprocess.Popen(
+					self.cmd,
+					stdout=subprocess.PIPE,
+					stderr=subprocess.PIPE
+				)
+			except FileNotFoundError as e:
+				self.result = CmdFakeResponse('', str(e), 127)
+			except OSError as e:
+				self.result = CmdFakeResponse('', str(e), 1)
+
+		return self.result
 
 
 class BackgroundCmd(Cmd):
@@ -299,11 +353,11 @@ class BackgroundCmd(Cmd):
 				logging.warning('Background commands cannot be cached!')
 
 			try:
+				logging.debug('Running background command: %s' % ' '.join(self.cmd))
 				self.result = subprocess.Popen(
 					self.cmd,
 					stdout=subprocess.DEVNULL,
-					stderr=subprocess.DEVNULL,
-					preexec_fn=lambda: logging.debug('Running background command: %s' % ' '.join(self.cmd))
+					stderr=subprocess.DEVNULL
 				)
 			except FileNotFoundError as e:
 				self.result = CmdFakeResponse('', str(e), 127)
