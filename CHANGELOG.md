@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Implement cwd support for PipeCmd and BackgroundCmd to mimic new feature in Cmd
+- Migrate more calls internally from get_app_directory to get_base_directory
+
 ### Security
 
 

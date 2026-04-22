@@ -121,7 +121,7 @@ def makedirs(target_dir: str):
 		return
 
 	# Ensure the directory exists within the context of either this game or the game owner's home directory
-	if not (target_dir.startswith(get_app_directory()) or target_dir.startswith(get_home_directory())):
+	if not (target_dir.startswith(get_base_directory()) or target_dir.startswith(get_home_directory())):
 		raise Exception('Cannot create directory outside of game directory: %s' % target_dir)
 
 	# Iterate up until the parent directory exists.
