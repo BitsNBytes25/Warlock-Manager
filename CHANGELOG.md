@@ -21,24 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
-## [2.2.7]
-
-### Added
+## [2.2.7] - 2026-04-22
 
 ### Changed
 
 - Use custom user agent in download and download_json because Cloudflare is an asshole
 
-### Deprecated
-
-### Removed
-
 ### Fixed
 
 - Implement cwd support for PipeCmd and BackgroundCmd to mimic new feature in Cmd
 - Migrate more calls internally from get_app_directory to get_base_directory
-
-### Security
 
 
 ## [2.2.6] - 2026-04-21
@@ -326,6 +318,7 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.2.7**: Cloudflare is an asshole
 - **v2.2.6**: Fixes to Firewall and Cmd libraries
 - **v2.2.5**: Fixes for Unreal INI configurations
 - **v2.2.1**: Minor bug fixes
@@ -340,6 +333,7 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.7]: https://pypi.org/project/warlock-manager/2.2.7
 [2.2.6]: https://pypi.org/project/warlock-manager/2.2.6
 [2.2.5]: https://pypi.org/project/warlock-manager/2.2.5
 [2.2.4]: https://pypi.org/project/warlock-manager/2.2.4
