@@ -8,7 +8,7 @@ import hashlib
 import secrets
 from warlock_manager.libs.cmd import Cmd
 from warlock_manager.services.base_service import BaseService
-from warlock_manager.libs.utils import get_app_directory
+from warlock_manager.libs.utils import get_base_directory
 
 
 class Nexus:
@@ -34,7 +34,7 @@ class Nexus:
 			with open(self.email_file, 'r') as f:
 				self.email = f.read().strip()
 
-		manager_meta_path = os.path.join(get_app_directory(), '.manage.json')
+		manager_meta_path = os.path.join(get_base_directory(), '.manage.json')
 		if os.path.exists(manager_meta_path):
 			with open(manager_meta_path, 'r') as f:
 				meta = json.load(f)
@@ -222,7 +222,7 @@ class Nexus:
 			# Only push stats for running services
 			return
 
-		last_checkin_file = os.path.join(get_app_directory(), '.cache', '.%s.checkin' % service.service)
+		last_checkin_file = os.path.join(get_base_directory(), '.cache', '.%s.checkin' % service.service)
 		now = int(time.time())
 		if os.path.exists(last_checkin_file):
 			# Only push stats once every 15 minutes

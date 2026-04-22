@@ -1321,7 +1321,7 @@ class BaseService(ABC):
 			logging.info('Removed environment file for %s at %s' % (self.service, self._env_file))
 
 		target_dir = self.get_app_directory()
-		app_dir = os.path.join(self.game.get_app_directory(), 'AppFiles')
+		app_dir = os.path.join(utils.get_base_directory(), 'AppFiles')
 		if target_dir != app_dir and os.path.exists(target_dir):
 			# Only remove app directory if it's different than the game app.
 			# This is important because by default game instances share the same application base.
@@ -1379,7 +1379,7 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		base = self.game.get_app_directory()
+		base = utils.get_base_directory()
 		temp_store = os.path.join(base, '.save-%s' % self.service)
 		save_source = self.get_save_directory()
 		save_files = self.get_save_files()
@@ -1433,7 +1433,7 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		base = self.game.get_app_directory()
+		base = utils.get_base_directory()
 		temp_store = os.path.join(base, '.save-%s' % self.service)
 		target_dir = self.get_backup_directory()
 		base_name = self.service
@@ -1517,7 +1517,7 @@ class BaseService(ABC):
 			print('Game server is currently running, please stop it before restoring a backup!', file=sys.stderr)
 			return False
 
-		base = self.game.get_app_directory()
+		base = utils.get_base_directory()
 		temp_store = os.path.join(base, '.restore-%s' % self.service)
 		save_dest = self.get_save_directory()
 
@@ -1567,7 +1567,7 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		base = self.game.get_app_directory()
+		base = utils.get_base_directory()
 		temp_store = os.path.join(base, '.restore-%s' % self.service)
 
 		# Cleanup
