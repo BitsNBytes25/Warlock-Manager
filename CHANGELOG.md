@@ -21,6 +21,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.7]
+
+### Added
+
+### Changed
+
+- Use custom user agent in download and download_json because Cloudflare is an asshole
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+
 ## [2.2.6] - 2026-04-21
 
 ### Added

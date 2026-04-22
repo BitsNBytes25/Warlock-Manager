@@ -3,6 +3,10 @@ import requests
 import json
 from warlock_manager.libs import utils
 from warlock_manager.libs import cache
+from warlock_manager.libs.meta import get_meta
+
+# "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+USER_AGENT = 'Warlock Manager/%s (warlock.nexus) <staff@bitsnbytes.dev>' % get_meta()['version']
 
 
 def download_file(url: str, destination: str):
@@ -18,7 +22,7 @@ def download_file(url: str, destination: str):
     # Ensure the target directory exists
     utils.ensure_file_parent_exists(destination)
 
-    response = requests.get(url, stream=True)
+    response = requests.get(url, stream=True, headers={'User-Agent': USER_AGENT})
     response.raise_for_status()  # Check if the request was successful
 
     with open(destination, 'wb') as f:
@@ -47,7 +51,7 @@ def download_json(url: str) -> dict:
     if cached is not None:
         return json.loads(cached)
 
-    response = requests.get(url)
+    response = requests.get(url, headers={'User-Agent': USER_AGENT, 'Accept': 'application/json'})
     response.raise_for_status()  # Check if the request was successful
     data = response.json()
 
