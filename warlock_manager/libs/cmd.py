@@ -329,6 +329,7 @@ class PipeCmd(Cmd):
 				logging.debug('Running piped command: %s' % ' '.join(self.cmd))
 				self.result = subprocess.Popen(
 					self.cmd,
+					cwd=self._cwd,
 					stdout=subprocess.PIPE,
 					stderr=subprocess.PIPE
 				)
@@ -360,6 +361,7 @@ class BackgroundCmd(Cmd):
 				logging.debug('Running background command: %s' % ' '.join(self.cmd))
 				self.result = subprocess.Popen(
 					self.cmd,
+					cwd=self._cwd,
 					stdout=subprocess.DEVNULL,
 					stderr=subprocess.DEVNULL
 				)
