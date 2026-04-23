@@ -1202,7 +1202,7 @@ class BaseService(ABC):
 		:return:
 		"""
 		return {
-			'XDG_RUNTIME_DIR': '/run/user/%s' % self.game.get_app_uid(),
+			'XDG_RUNTIME_DIR': '/run/user/%s' % utils.get_app_uid(),
 		}
 
 	def get_info(self) -> dict:
