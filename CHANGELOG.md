@@ -21,6 +21,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.8] - NEXT
+
+### Added
+
+- Add get_proton_paths to get Proton installations on system
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+
 ## [2.2.7] - 2026-04-22
 
 ### Changed
