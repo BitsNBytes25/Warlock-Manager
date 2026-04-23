@@ -21,21 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
-## [2.2.8] - NEXT
+## [2.2.8] - 2026-04-23
 
 ### Added
 
 - Add get_proton_paths to get Proton installations on system
-
-### Changed
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
 
 
 ## [2.2.7] - 2026-04-22
@@ -335,9 +325,13 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.2.8**: Support for Proton installations
 - **v2.2.7**: Cloudflare is an asshole
 - **v2.2.6**: Fixes to Firewall and Cmd libraries
 - **v2.2.5**: Fixes for Unreal INI configurations
+- **v2.2.4**: Minor bug fixes
+- **v2.2.3**: Minor bug fixes
+- **v2.2.2**: Minor bug fixes
 - **v2.2.1**: Minor bug fixes
 - **v2.2.0**: More advanced mod support and support for Warlock.Nexus
 - **v2.1.2**: Add support for mod management in the CLI application
@@ -350,6 +344,7 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.8]: https://pypi.org/project/warlock-manager/2.2.8
 [2.2.7]: https://pypi.org/project/warlock-manager/2.2.7
 [2.2.6]: https://pypi.org/project/warlock-manager/2.2.6
 [2.2.5]: https://pypi.org/project/warlock-manager/2.2.5
