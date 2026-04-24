@@ -26,12 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add new logger interface for custom logging
+- Add BaseService.get_pids to get ALL pids for a service
 
 ### Changed
 
 - Switch from using system default logging to custom logger to fix --debug issues with dependencies
 - Set services to support lazy loading of configs for performance
 - Other little adjustments to try to improve performance
+- Switch port lookup to check against all pids for ownership (fix for ARK and other Proton games)
 
 ### Deprecated
 

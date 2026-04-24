@@ -389,6 +389,17 @@ class BaseService(ABC):
 		pid = check.text[8:]
 		return int(pid)
 
+	def get_pids(self) -> list:
+		"""
+		Get all Process IDs associated with this service
+
+		By default just contains the service and game PID, but more can be added as necessary.
+		:return:
+		"""
+
+		pids = [self.get_pid(), self.get_game_pid()]
+		return list(set(pids))
+
 	def get_process_status(self) -> int:
 		"""
 		Get the exit status of the main process of the service, or 0 if running successfully
@@ -772,8 +783,7 @@ class BaseService(ABC):
 		:return:
 		"""
 		ret = []
-		game_pid = self.get_game_pid()
-		pid = self.get_pid()
+		pids = self.get_pids()
 
 		for port_def in self.get_port_definitions():
 			if isinstance(port_def[0], int):
@@ -790,7 +800,7 @@ class BaseService(ABC):
 			if listening_status is not None:
 				is_global = listening_status['ip'] != '127.0.0.1'
 				is_listening = True
-				is_owned = listening_status['pid'] in (game_pid, pid)
+				is_owned = int(listening_status['pid']) in pids
 				is_open = Firewall.is_global_open(port, protocol)
 			else:
 				is_global = False
