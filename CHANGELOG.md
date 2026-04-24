@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Switch from using system default logging to custom logger to fix --debug issues with dependencies
+- Set services to support lazy loading of configs for performance
+- Other little adjustments to try to improve performance
 
 ### Deprecated
 

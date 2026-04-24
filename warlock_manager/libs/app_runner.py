@@ -37,6 +37,7 @@ def app_runner(game: BaseApp):
 		:param value:
 		:return: BaseService | None
 		"""
+		logger.debug('Resolving service: %s' % value)
 		if value is None:
 			return None
 		services = game.get_services()
@@ -371,6 +372,7 @@ def app_runner(game: BaseApp):
 		:param service: BaseService | None
 		:return:
 		"""
+		logger.debug('Running get_metrics()')
 		nexus = Nexus()
 		if service and isinstance(service, BaseService):
 			services: list[BaseService] = [service]

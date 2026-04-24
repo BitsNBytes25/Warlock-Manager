@@ -4,7 +4,7 @@ import sys
 import time
 from abc import ABC
 
-from .base_app import BaseApp
+from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.libs.cmd import Cmd
 from warlock_manager.libs import utils
 from warlock_manager.libs.logger import logger

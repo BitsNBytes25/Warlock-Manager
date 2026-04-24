@@ -83,12 +83,22 @@ class BaseService(ABC):
 		Each service should have its own key with the value being the ConfigHandler for that appropriate type.
 		"""
 
+		self._loaded = False
+		"""
+		Used to handle lazy-loading of configurations for this service
+
+		Only really useful for games like ARK where there are a bunch of services for a given application.
+		"""
+
 	def load(self):
 		"""
 		Load the configuration files
 
 		:return:
 		"""
+		if self._loaded:
+			return
+
 		for config in self.configs.values():
 			if config.exists():
 				config.load()
@@ -98,12 +108,15 @@ class BaseService(ABC):
 				# but the directory structure should be available to make it more simple for saving
 				self.game.ensure_file_parent_exists(config.path)
 
+		self._loaded = True
+
 	def get_options(self) -> list:
 		"""
 		Get a list of available configuration options for this service
 
 		:return:
 		"""
+		self.load()
 		opts = []
 		for config in self.configs.values():
 			opts.extend(list(config.options.keys()))
@@ -120,6 +133,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.get_value(option)
@@ -134,6 +148,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.get_default(option)
@@ -148,6 +163,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.get_type(option)
@@ -162,6 +178,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.options[option].help
@@ -186,6 +203,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.options[option].group
@@ -201,6 +219,7 @@ class BaseService(ABC):
 		:param value:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			opt = config.get_config(option)
 			if opt is not None:
@@ -239,6 +258,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.has_value(option)
@@ -253,6 +273,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.get_options(option)
@@ -267,6 +288,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		if not self.option_has_value(option):
 			default = self.get_option_default(option)
 			self.set_option(option, default)
@@ -553,7 +575,9 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		return Cmd(['systemctl', 'is-enabled', self.service]).text
+		check = Cmd(['systemctl', 'is-enabled', self.service])
+		check.is_memory_cacheable(4)
+		return check.text
 
 	def _is_active(self) -> str:
 		"""
@@ -571,7 +595,7 @@ class BaseService(ABC):
 		:return:
 		"""
 		check = Cmd(['systemctl', 'is-active', self.service])
-		check.is_memory_cacheable(3)
+		check.is_memory_cacheable(4)
 		return check.text
 
 	def is_enabled(self) -> bool:

@@ -227,7 +227,7 @@ class Cmd:
 			if self.memory_cacheable is not False:
 				key = ' '.join(self.cmd)
 				if key in self._memory_cache:
-					cached_time, cached = Cmd._memory_cache[key]
+					cached_time, cached, code = Cmd._memory_cache[key]
 					if cached_time + self.memory_cacheable >= time.time():
 						logger.debug('Using memory cached result instead')
 						self.result = CmdFakeResponse(
@@ -268,17 +268,18 @@ class Cmd:
 					logger.debug('STDERR: %s' % self.result.stderr.strip())
 				logger.debug('Return code: %d' % self.result.returncode)
 
-		if self.result.returncode == 0:
-			# Check to see if this result should be cached on either the filesystem and/or memory
-			if self.memory_cacheable is not False:
-				key = ' '.join(self.cmd)
-				if self.uses == 'stdout':
-					Cmd._memory_cache[key] = (time.time(), self.result.stdout)
-				elif self.uses == 'stderr':
-					Cmd._memory_cache[key] = (time.time(), self.result.stderr)
-				else:
-					logger.warning('Attempting to cache command output without capturing it. This is not supported!')
+		# Cache all responses to memory if requested, saves time on failed lookup checks.
+		if self.memory_cacheable is not False:
+			key = ' '.join(self.cmd)
+			if self.uses == 'stdout':
+				Cmd._memory_cache[key] = (time.time(), self.result.stdout, self.result.returncode)
+			elif self.uses == 'stderr':
+				Cmd._memory_cache[key] = (time.time(), self.result.stderr, self.result.returncode)
+			else:
+				logger.warning('Attempting to cache command output without capturing it. This is not supported!')
 
+		if self.result.returncode == 0:
+			# Successful executions can be cached to disk
 			if self.cacheable is not False:
 				# Do we save stdout or stderr?
 				if self.uses == 'stdout':
