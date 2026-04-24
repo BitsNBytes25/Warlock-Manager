@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import tempfile
 from typing import Union
-import logging
+from warlock_manager.libs.logger import logger
 
 
 def print_header(title: str, width: int = 80, clear: bool = False, subtitle: str = '') -> None:
@@ -258,7 +258,7 @@ class Table:
 
 		total_width = sum(col_lengths) + (3 * len(col_lengths) + 1 if self.borders else 2 * (len(col_lengths) + 1))
 		if total_width > term_width:
-			logging.debug(f'Total data width {total_width} exceeds terminal width {term_width}, shrinking columns')
+			logger.debug(f'Total data width {total_width} exceeds terminal width {term_width}, shrinking columns')
 			widest_column_width = 0
 			widest_column_idx = 0
 			shrunk = 0
@@ -276,7 +276,7 @@ class Table:
 				col_lengths[widest_column_idx] = col_lengths[widest_column_idx] - (total_width - shrunk - term_width)
 
 			total_width = sum(col_lengths) + (3 * len(col_lengths) + 1 if self.borders else 2 * (len(col_lengths) + 1))
-			logging.debug(f'Shrunk columns to {total_width}')
+			logger.debug(f'Shrunk columns to {total_width}')
 
 		for row in rows:
 			vals = []

@@ -1,8 +1,8 @@
-import logging
 from typing import TYPE_CHECKING
 
 from warlock_manager.nexus.nexus import Nexus
 from warlock_manager.mods.base_mod import BaseMod
+from warlock_manager.libs.logger import logger
 if TYPE_CHECKING:
 	from warlock_manager.services.base_service import BaseService
 
@@ -31,7 +31,7 @@ class WarlockNexusMod(BaseMod):
 		nexus = Nexus()
 		result = nexus.mod_search(mod_lookup, source.get_version(), source.get_loader())
 		if not result['success']:
-			logging.error('Failed to search for mods: %s' % result['message'])
+			logger.error('Failed to search for mods: %s' % result['message'])
 			return ret
 
 		for data in result['data']:
@@ -60,7 +60,7 @@ class WarlockNexusMod(BaseMod):
 		nexus = Nexus()
 		result = nexus.mod_get(provider, mod_id, source.get_version(), source.get_loader())
 		if not result['success']:
-			logging.error('Failed to get mod: %s' % result['message'])
+			logger.error('Failed to get mod: %s' % result['message'])
 			return None
 
 		return cls.from_dict(result['data'])

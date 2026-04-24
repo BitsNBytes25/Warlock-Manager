@@ -1,11 +1,11 @@
 import os
 import subprocess
 import json
-import logging
 import time
 import pwd
 
 from warlock_manager.libs import cache
+from warlock_manager.libs.logger import logger
 
 
 class CmdFakeResponse:
@@ -223,13 +223,13 @@ class Cmd:
 		:return:
 		"""
 		if self.result is None:
-			logging.debug('Running command: %s' % ' '.join(self.cmd))
+			logger.debug('Running command: %s' % ' '.join(self.cmd))
 			if self.memory_cacheable is not False:
 				key = ' '.join(self.cmd)
 				if key in self._memory_cache:
 					cached_time, cached = Cmd._memory_cache[key]
 					if cached_time + self.memory_cacheable >= time.time():
-						logging.debug('Using memory cached result instead')
+						logger.debug('Using memory cached result instead')
 						self.result = CmdFakeResponse(
 							cached if self.uses == 'stdout' else '',
 							cached if self.uses == 'stderr' else '',
@@ -240,7 +240,7 @@ class Cmd:
 			if self.cacheable is not False:
 				cached = self.try_cache()
 				if cached is not None:
-					logging.debug('Using cached result instead')
+					logger.debug('Using cached result instead')
 					self.result = CmdFakeResponse(
 						cached if self.uses == 'stdout' else '',
 						cached if self.uses == 'stderr' else '',
@@ -263,10 +263,10 @@ class Cmd:
 				self.result = CmdFakeResponse('', str(e), 1)
 			finally:
 				if self.result.stdout:
-					logging.debug('STDOUT: %s' % self.result.stdout.strip())
+					logger.debug('STDOUT: %s' % self.result.stdout.strip())
 				if self.result.stderr:
-					logging.debug('STDERR: %s' % self.result.stderr.strip())
-				logging.debug('Return code: %d' % self.result.returncode)
+					logger.debug('STDERR: %s' % self.result.stderr.strip())
+				logger.debug('Return code: %d' % self.result.returncode)
 
 		if self.result.returncode == 0:
 			# Check to see if this result should be cached on either the filesystem and/or memory
@@ -277,7 +277,7 @@ class Cmd:
 				elif self.uses == 'stderr':
 					Cmd._memory_cache[key] = (time.time(), self.result.stderr)
 				else:
-					logging.warning('Attempting to cache command output without capturing it. This is not supported!')
+					logger.warning('Attempting to cache command output without capturing it. This is not supported!')
 
 			if self.cacheable is not False:
 				# Do we save stdout or stderr?
@@ -286,7 +286,7 @@ class Cmd:
 				elif self.uses == 'stderr':
 					cache.save_cache(' '.join(self.cmd), self.result.stderr)
 				else:
-					logging.warning('Attempting to cache command output without capturing it. This is not supported!')
+					logger.warning('Attempting to cache command output without capturing it. This is not supported!')
 
 		return self.result
 
@@ -323,10 +323,10 @@ class PipeCmd(Cmd):
 		if self.result is None:
 
 			if self.cacheable is not False:
-				logging.warning('Piped commands cannot be cached!')
+				logger.warning('Piped commands cannot be cached!')
 
 			try:
-				logging.debug('Running piped command: %s' % ' '.join(self.cmd))
+				logger.debug('Running piped command: %s' % ' '.join(self.cmd))
 				self.result = subprocess.Popen(
 					self.cmd,
 					cwd=self._cwd,
@@ -355,10 +355,10 @@ class BackgroundCmd(Cmd):
 		if self.result is None:
 
 			if self.cacheable is not False:
-				logging.warning('Background commands cannot be cached!')
+				logger.warning('Background commands cannot be cached!')
 
 			try:
-				logging.debug('Running background command: %s' % ' '.join(self.cmd))
+				logger.debug('Running background command: %s' % ' '.join(self.cmd))
 				self.result = subprocess.Popen(
 					self.cmd,
 					cwd=self._cwd,

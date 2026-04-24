@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import time
 
@@ -9,6 +8,7 @@ import secrets
 from warlock_manager.libs.cmd import Cmd
 from warlock_manager.services.base_service import BaseService
 from warlock_manager.libs.utils import get_base_directory
+from warlock_manager.libs.logger import logger
 
 
 class Nexus:
@@ -260,7 +260,7 @@ class Nexus:
 			with open(last_checkin_file, 'w') as f:
 				f.write(str(now))
 		except requests.exceptions.RequestException as e:
-			logging.debug('Error pushing service details: %s' % str(e))
+			logger.debug('Error pushing service details: %s' % str(e))
 
 	def mod_search(self, query: str, version: str | None, loader: str | None):
 		"""

@@ -1,8 +1,8 @@
-import logging
 import os
 import pwd
 import sys
 from typing_extensions import deprecated
+from warlock_manager.libs.logger import logger
 
 
 @deprecated('Please use utils.get_base_directory instead to avoid confusion')
@@ -86,7 +86,7 @@ def ensure_file_ownership(file: str):
 		uid = get_app_uid()
 		gid = get_app_gid()
 
-		logging.debug('Ensuring ownership of %s to %s:%s' % (file, uid, gid))
+		logger.debug('Ensuring ownership of %s to %s:%s' % (file, uid, gid))
 		os.chown(file, uid, gid)
 		if os.path.isdir(file):
 			for root, dirs, files in os.walk(file):

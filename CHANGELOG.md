@@ -21,6 +21,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.9] - NEXT
+
+### Added
+
+- Add new logger interface for custom logging
+
+### Changed
+
+- Switch from using system default logging to custom logger to fix --debug issues with dependencies
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+- BaseService.build_environment_file - Ensure Environments exists before attempting to write to them
+
+### Security
+
+
 ## [2.2.8] - 2026-04-23
 
 ### Added
