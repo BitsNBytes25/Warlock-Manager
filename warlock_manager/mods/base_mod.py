@@ -1,10 +1,10 @@
 import json
-import logging
 import os
 from typing import TYPE_CHECKING
 
 from warlock_manager.libs.download import download_file
 from warlock_manager.libs import utils
+from warlock_manager.libs.logger import logger
 
 if TYPE_CHECKING:
 	from services.base_service import BaseService
@@ -188,18 +188,18 @@ class BaseMod:
 		"""
 
 		if not self.source:
-			logging.error('Mod install source not found!')
+			logger.error('Mod install source not found!')
 			return False
 
 		if not self.package:
-			logging.error('Mod install package not found!')
+			logger.error('Mod install package not found!')
 			return False
 
 		target_archive = os.path.join(utils.get_base_directory(), 'Packages', self.package)
 		if not os.path.exists(target_archive):
 			download_file(self.source, target_archive)
 		else:
-			logging.debug('Mod already downloaded, skipping download')
+			logger.debug('Mod already downloaded, skipping download')
 
 		return True
 

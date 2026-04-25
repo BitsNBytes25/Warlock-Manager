@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import shutil
 import time
@@ -17,6 +16,7 @@ if TYPE_CHECKING:
 from warlock_manager.libs.tui import prompt_yn, prompt_text
 from warlock_manager.libs import utils
 from warlock_manager.libs.ports import get_ports
+from warlock_manager.libs.logger import logger
 
 
 class BaseApp(ABC):
@@ -116,7 +116,7 @@ class BaseApp(ABC):
 			elif config.path:
 				# Doesn't exist, (that's fine),
 				# but the directory structure should be available to make it more simple for saving
-				self.ensure_file_parent_exists(config.path)
+				utils.ensure_file_parent_exists(config.path)
 
 	def save(self):
 		"""
@@ -150,7 +150,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.get_value(option)
 
-		logging.warning('Invalid option: %s, not present in game configuration!' % option)
+		logger.warning('Invalid option: %s, not present in game configuration!' % option)
 		return ''
 
 	def get_option_default(self, option: str) -> str:
@@ -163,7 +163,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.get_default(option)
 
-		logging.warning('Invalid option: %s, not present in game configuration!' % option)
+		logger.warning('Invalid option: %s, not present in game configuration!' % option)
 		return ''
 
 	def get_option_type(self, option: str) -> str:
@@ -176,7 +176,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.get_type(option)
 
-		logging.warning('Invalid option: %s, not present in game configuration!' % option)
+		logger.warning('Invalid option: %s, not present in game configuration!' % option)
 		return ''
 
 	def get_option_help(self, option: str) -> str:
@@ -189,7 +189,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.options[option].help
 
-		logging.warning('Invalid option: %s, not present in game configuration!' % option)
+		logger.warning('Invalid option: %s, not present in game configuration!' % option)
 		return ''
 
 	def option_value_updated(self, option: str, previous_value, new_value) -> bool | None:
@@ -226,18 +226,18 @@ class BaseApp(ABC):
 				post_result = self.option_value_updated(option, previous_value, new_value)
 				if post_result is True:
 					# Post-update either returned a successful operation or nothing at all, either is fine.
-					logging.info('Updated option %s to %s and ran post-update actions successfully' % (option, value))
+					logger.info('Updated option %s to %s and ran post-update actions successfully' % (option, value))
 					return True
 				elif post_result is None:
-					logging.debug('Post-update returned None, this is fine as it indicates no post-actions taken')
-					logging.info('Updated option %s to %s' % (option, value))
+					logger.debug('Post-update returned None, this is fine as it indicates no post-actions taken')
+					logger.info('Updated option %s to %s' % (option, value))
 					return True
 				else:
 					# Post-update explictly returned False, this indicates a problem occurred.
-					logging.warning('Configuration saved, but unable to complete post-update actions!')
+					logger.warning('Configuration saved, but unable to complete post-update actions!')
 					return False
 
-		logging.warning('Invalid option: %s, not present in game configuration!' % option)
+		logger.warning('Invalid option: %s, not present in game configuration!' % option)
 		return False
 
 	def get_option_options(self, option: str):
@@ -250,7 +250,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.get_options(option)
 
-		logging.warning('Invalid option: %s, not present in game configuration!' % option)
+		logger.warning('Invalid option: %s, not present in game configuration!' % option)
 		return []
 
 	def get_option_group(self, option: str):
@@ -263,7 +263,7 @@ class BaseApp(ABC):
 			if option in config.options:
 				return config.options[option].group
 
-		logging.warning('Invalid option: %s, not present in game configuration!' % option)
+		logger.warning('Invalid option: %s, not present in game configuration!' % option)
 		return 'Options'
 
 	def prompt_option(self, option: str):
@@ -376,11 +376,11 @@ class BaseApp(ABC):
 		"""
 
 		if action not in ['stop', 'restart', 'update']:
-			logging.error('Invalid action for delayed action: %s' % action)
+			logger.error('Invalid action for delayed action: %s' % action)
 			return
 
 		if os.geteuid() != 0:
-			logging.error('Unable to %s game service unless run with sudo' % action)
+			logger.error('Unable to %s game service unless run with sudo' % action)
 			return
 
 		msg = self.get_option_value('%s_delayed' % action)
@@ -391,7 +391,7 @@ class BaseApp(ABC):
 		services_running = []
 		services = self.get_services()
 
-		logging.info(
+		logger.info(
 			'Starting delayed %s action for all services, this gives current players up to an hour to log off safely' %
 			action
 		)
@@ -413,7 +413,7 @@ class BaseApp(ABC):
 
 					if player_count == 0 or player_count is None:
 						# No players online, stop the service
-						logging.info('Stopping %s as no players are online.' % service.service)
+						logger.info('Stopping %s as no players are online.' % service.service)
 						service.stop()
 					else:
 						# Still online, check to see if we should send a message
@@ -427,7 +427,7 @@ class BaseApp(ABC):
 							service.send_message(player_msg)
 
 			if minutes_left % 5 == 0 and minutes_left > 5:
-				logging.info('%s minutes remaining before %s.' % (str(minutes_left), action))
+				logger.info('%s minutes remaining before %s.' % (str(minutes_left), action))
 
 			if not still_running or minutes_left <= 0:
 				# No services are running, stop the timer
@@ -443,7 +443,7 @@ class BaseApp(ABC):
 			# Now that all services have been stopped, restart any that were running before
 			for service in services:
 				if service.service in services_running:
-					logging.info('Starting %s' % service.service)
+					logger.info('Starting %s' % service.service)
 					service.start()
 
 	def get_services(self) -> list['BaseService']:
@@ -659,7 +659,7 @@ class BaseApp(ABC):
 		for config in self.configs.values():
 			if config.path and os.path.exists(config.path):
 				os.remove(config.path)
-				logging.info('Removed config file for %s at %s' % (self.name, config.path))
+				logger.info('Removed config file for %s at %s' % (self.name, config.path))
 
 		# Cleanup directory structure
 		shutil.rmtree(os.path.join(utils.get_base_directory(), 'AppFiles'))

@@ -1,5 +1,3 @@
-import json
-import logging
 import os
 import time
 
@@ -9,6 +7,8 @@ import secrets
 from warlock_manager.libs.cmd import Cmd
 from warlock_manager.services.base_service import BaseService
 from warlock_manager.libs.utils import get_base_directory
+from warlock_manager.libs.logger import logger
+from warlock_manager.libs.meta import get_meta
 
 
 class Nexus:
@@ -34,11 +34,7 @@ class Nexus:
 			with open(self.email_file, 'r') as f:
 				self.email = f.read().strip()
 
-		manager_meta_path = os.path.join(get_base_directory(), '.manage.json')
-		if os.path.exists(manager_meta_path):
-			with open(manager_meta_path, 'r') as f:
-				meta = json.load(f)
-				self.game = meta['game']
+		self.game = get_meta()['game']
 
 	def set_email(self, email: str):
 		"""
@@ -260,7 +256,7 @@ class Nexus:
 			with open(last_checkin_file, 'w') as f:
 				f.write(str(now))
 		except requests.exceptions.RequestException as e:
-			logging.debug('Error pushing service details: %s' % str(e))
+			logger.debug('Error pushing service details: %s' % str(e))
 
 	def mod_search(self, query: str, version: str | None, loader: str | None):
 		"""

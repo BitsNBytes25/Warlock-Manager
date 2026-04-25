@@ -3,6 +3,8 @@ import os
 import sys
 from importlib.metadata import version, PackageNotFoundError
 
+_META = None
+
 
 def get_meta() -> dict:
 	"""
@@ -11,13 +13,19 @@ def get_meta() -> dict:
 	This relates to the information of the _management script_, not of the game.
 	:return:
 	"""
+	global _META
+	if _META is not None:
+		# Cache this lookup
+		return _META
+
 	meta = {
 		'version': 'unknown',
 		'url': None,
 		'source': None,
 		'repo': None,
 		'branch': None,
-		'commit': None
+		'commit': None,
+		'game': None
 	}
 
 	try:
@@ -34,10 +42,12 @@ def get_meta() -> dict:
 				meta['commit'] = version_data['commit']
 				meta['source'] = version_data['source']
 				meta['repo'] = version_data['repo']
+				meta['game'] = version_data['game'] if 'game' in version_data else None
 		except Exception:
 			pass
 
 	if meta['source'] == 'github' and meta['repo'] is not None:
 		meta['url'] = 'https://github.com/' + meta["repo"]
 
+	_META = meta
 	return meta

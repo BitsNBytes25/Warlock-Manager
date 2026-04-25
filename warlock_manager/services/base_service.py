@@ -1,5 +1,4 @@
 import datetime
-import logging
 import os
 import shutil
 import sys
@@ -20,6 +19,7 @@ from warlock_manager.libs.cmd import Cmd, BackgroundCmd
 from warlock_manager.libs.ports import get_listening_port
 from warlock_manager.libs.firewall import Firewall
 from warlock_manager.libs import utils
+from warlock_manager.libs.logger import logger
 
 
 class BaseService(ABC):
@@ -83,12 +83,22 @@ class BaseService(ABC):
 		Each service should have its own key with the value being the ConfigHandler for that appropriate type.
 		"""
 
+		self._loaded = False
+		"""
+		Used to handle lazy-loading of configurations for this service
+
+		Only really useful for games like ARK where there are a bunch of services for a given application.
+		"""
+
 	def load(self):
 		"""
 		Load the configuration files
 
 		:return:
 		"""
+		if self._loaded:
+			return
+
 		for config in self.configs.values():
 			if config.exists():
 				config.load()
@@ -98,12 +108,15 @@ class BaseService(ABC):
 				# but the directory structure should be available to make it more simple for saving
 				self.game.ensure_file_parent_exists(config.path)
 
+		self._loaded = True
+
 	def get_options(self) -> list:
 		"""
 		Get a list of available configuration options for this service
 
 		:return:
 		"""
+		self.load()
 		opts = []
 		for config in self.configs.values():
 			opts.extend(list(config.options.keys()))
@@ -120,11 +133,12 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.get_value(option)
 
-		logging.warning('Invalid option: %s, not present in service configuration!' % option)
+		logger.warning('Invalid option: %s, not present in service configuration!' % option)
 		return ''
 
 	def get_option_default(self, option: str) -> str:
@@ -134,6 +148,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.get_default(option)
@@ -148,6 +163,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.get_type(option)
@@ -162,6 +178,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.options[option].help
@@ -186,6 +203,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.options[option].group
@@ -201,6 +219,7 @@ class BaseService(ABC):
 		:param value:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			opt = config.get_config(option)
 			if opt is not None:
@@ -218,18 +237,18 @@ class BaseService(ABC):
 				post_result = self.option_value_updated(option, previous_value, new_value)
 				if post_result is True:
 					# Post-update either returned a successful operation or nothing at all, either is fine.
-					logging.info('Updated option %s to %s and ran post-update actions successfully' % (option, value))
+					logger.info('Updated option %s to %s and ran post-update actions successfully' % (option, value))
 					return True
 				elif post_result is None:
-					logging.debug('Post-update returned None, this is fine as it indicates no post-actions taken')
-					logging.info('Updated option %s to %s' % (option, value))
+					logger.debug('Post-update returned None, this is fine as it indicates no post-actions taken')
+					logger.info('Updated option %s to %s' % (option, value))
 					return True
 				else:
 					# Post-update explictly returned False, this indicates a problem occurred.
-					logging.warning('Configuration saved, but unable to complete post-update actions!')
+					logger.warning('Configuration saved, but unable to complete post-update actions!')
 					return False
 
-		logging.warning('Invalid option: %s, not present in service configuration!' % option)
+		logger.warning('Invalid option: %s, not present in service configuration!' % option)
 		return False
 
 	def option_has_value(self, option: str) -> bool:
@@ -239,6 +258,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.has_value(option)
@@ -253,6 +273,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		for config in self.configs.values():
 			if option in config.options:
 				return config.get_options(option)
@@ -267,6 +288,7 @@ class BaseService(ABC):
 		:param option:
 		:return:
 		"""
+		self.load()
 		if not self.option_has_value(option):
 			default = self.get_option_default(option)
 			self.set_option(option, default)
@@ -366,6 +388,17 @@ class BaseService(ABC):
 		check.is_memory_cacheable(3)
 		pid = check.text[8:]
 		return int(pid)
+
+	def get_pids(self) -> list:
+		"""
+		Get all Process IDs associated with this service
+
+		By default just contains the service and game PID, but more can be added as necessary.
+		:return:
+		"""
+
+		pids = [self.get_pid(), self.get_game_pid()]
+		return list(set(pids))
 
 	def get_process_status(self) -> int:
 		"""
@@ -553,7 +586,9 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		return Cmd(['systemctl', 'is-enabled', self.service]).text
+		check = Cmd(['systemctl', 'is-enabled', self.service])
+		check.is_memory_cacheable(4)
+		return check.text
 
 	def _is_active(self) -> str:
 		"""
@@ -571,7 +606,7 @@ class BaseService(ABC):
 		:return:
 		"""
 		check = Cmd(['systemctl', 'is-active', self.service])
-		check.is_memory_cacheable(3)
+		check.is_memory_cacheable(4)
 		return check.text
 
 	def is_enabled(self) -> bool:
@@ -748,8 +783,7 @@ class BaseService(ABC):
 		:return:
 		"""
 		ret = []
-		game_pid = self.get_game_pid()
-		pid = self.get_pid()
+		pids = self.get_pids()
 
 		for port_def in self.get_port_definitions():
 			if isinstance(port_def[0], int):
@@ -766,7 +800,7 @@ class BaseService(ABC):
 			if listening_status is not None:
 				is_global = listening_status['ip'] != '127.0.0.1'
 				is_listening = True
-				is_owned = listening_status['pid'] in (game_pid, pid)
+				is_owned = int(listening_status['pid']) in pids
 				is_open = Firewall.is_global_open(port, protocol)
 			else:
 				is_global = False
@@ -794,18 +828,18 @@ class BaseService(ABC):
 		:return:
 		"""
 		if self.is_running():
-			logging.warning('Game is already running!')
+			logger.warning('Game is already running!')
 			return
 
 		if self.is_starting():
-			logging.warning('Game is currently starting!')
+			logger.warning('Game is currently starting!')
 			return
 
 		if os.geteuid() != 0:
-			logging.error('Unable to start game service unless run with sudo')
+			logger.error('Unable to start game service unless run with sudo')
 			return
 
-		logging.info('Starting game via systemd, this may take a minute...')
+		logger.info('Starting game via systemd, this may take a minute...')
 		BackgroundCmd(['systemctl', 'start', self.service]).run()
 
 	def pre_stop(self) -> bool:
@@ -858,7 +892,7 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		logging.info('Waiting for game to become available for start confirmation...')
+		logger.info('Waiting for game to become available for start confirmation...')
 		start_timer = time.time()
 		seconds_elapsed = round(time.time() - start_timer)
 		ready = False
@@ -880,7 +914,7 @@ class BaseService(ABC):
 			else:
 				since_seconds = str(since_seconds)
 
-			logging.info(
+			logger.info(
 				'Waiting (%s:%s / %s:%s max wait)' %
 				(since_minutes, since_seconds, max_wait_minutes, max_wait_seconds)
 			)
@@ -888,11 +922,11 @@ class BaseService(ABC):
 
 			# Base checks; the process should still be running
 			if self.get_process_status() != 0:
-				logging.error('Game crashed during startup!')
+				logger.error('Game crashed during startup!')
 				return False
 
 			if self.get_pid() == 0:
-				logging.error('Game failed to start or no PID found.')
+				logger.error('Game failed to start or no PID found.')
 				return False
 
 			if not socket_ready:
@@ -900,22 +934,22 @@ class BaseService(ABC):
 				# If it's None, that means this information won't be available and we can skip the check.
 				port_open = self.is_port_open()
 				if port_open is None:
-					logging.info('Unable to determine if port is open, skipping check.')
+					logger.info('Unable to determine if port is open, skipping check.')
 					socket_ready = True
 				elif port_open is True:
 					socket_ready = True
-					logging.info('Game port is open, continuing to API check')
+					logger.info('Game port is open, continuing to API check')
 				else:
-					logging.info('Game port is closed, waiting for it to open.')
+					logger.info('Game port is closed, waiting for it to open.')
 					continue
 
 			if self.is_api_enabled():
 				players = self.get_player_count()
 				if players is not None:
-					logging.info('API connected!')
+					logger.info('API connected!')
 					ready = True
 			else:
-				logging.info('API is not available, skipping start confirmation.')
+				logger.info('API is not available, skipping start confirmation.')
 				ready = True
 
 		if ready:
@@ -928,7 +962,7 @@ class BaseService(ABC):
 		else:
 			# Checks failed to complete within allowed time.
 			# This does not mean the game didn't start, it just didn't start _within allocated time_.
-			logging.warning('API did not respond within the allowed time!')
+			logger.warning('API did not respond within the allowed time!')
 
 		return True
 
@@ -1233,6 +1267,7 @@ class BaseService(ABC):
 
 		:return:
 		"""
+		utils.ensure_file_parent_exists(self._env_file)
 		with open(self._env_file, 'w') as f:
 			env = self.get_environment()
 			for key in env:
@@ -1258,11 +1293,11 @@ class BaseService(ABC):
 
 		# Build the systemd service file for this service
 		self.build_systemd_config()
-		logging.info('Created systemd service file for %s at %s' % (self.service, self._service_file))
+		logger.info('Created systemd service file for %s at %s' % (self.service, self._service_file))
 
 		# Save the environmental variable file for this service
 		self.build_environment_file()
-		logging.info('Created environment file for %s at %s' % (self.service, self._env_file))
+		logger.info('Created environment file for %s at %s' % (self.service, self._env_file))
 
 		# Grab the ports from this service and try to automatically update them to the next available port
 		# NOTICE, this will only check against services within this same game,
@@ -1283,14 +1318,14 @@ class BaseService(ABC):
 			if port_default == new_port:
 				# New installations where the default port may not trigger the 'change' logic
 				# as the port _technically_ didn't change, therefore the firewall rules won't be added.
-				logging.info('Setting %s to 0 to force firewall change' % port_config[0])
+				logger.info('Setting %s to 0 to force firewall change' % port_config[0])
 				self.set_option(port_config[0], 0)
 
 			self.set_option(port_config[0], new_port)
 			if new_port != port:
-				logging.info('Set %s to %s to try to avoid conflicts' % (port_config[0], new_port))
+				logger.info('Set %s to %s to try to avoid conflicts' % (port_config[0], new_port))
 			else:
-				logging.info('Set %s to %s' % (port_config[0], new_port))
+				logger.info('Set %s to %s' % (port_config[0], new_port))
 
 		# Reload systemd to pick up the new service
 		self.reload()
@@ -1299,7 +1334,7 @@ class BaseService(ABC):
 		target_dir = self.get_app_directory()
 		if not os.path.exists(target_dir):
 			os.makedirs(target_dir)
-			logging.info('Created app directory for %s at %s' % (self.service, target_dir))
+			logger.info('Created app directory for %s at %s' % (self.service, target_dir))
 			self.game.ensure_file_ownership(target_dir)
 
 	def remove_service(self):
@@ -1314,11 +1349,11 @@ class BaseService(ABC):
 
 		if os.path.exists(self._service_file):
 			os.remove(self._service_file)
-			logging.info('Removed systemd service file for %s at %s' % (self.service, self._service_file))
+			logger.info('Removed systemd service file for %s at %s' % (self.service, self._service_file))
 
 		if os.path.exists(self._env_file):
 			os.remove(self._env_file)
-			logging.info('Removed environment file for %s at %s' % (self.service, self._env_file))
+			logger.info('Removed environment file for %s at %s' % (self.service, self._env_file))
 
 		target_dir = self.get_app_directory()
 		app_dir = os.path.join(utils.get_base_directory(), 'AppFiles')
@@ -1329,12 +1364,12 @@ class BaseService(ABC):
 				raise Exception('Attempting to remove an application directory that is outside the scope of the game!')
 
 			shutil.rmtree(target_dir)
-			logging.info('Removed app directory for %s at %s' % (self.service, target_dir))
+			logger.info('Removed app directory for %s at %s' % (self.service, target_dir))
 
 		for config in self.configs.values():
 			if config.path and os.path.exists(config.path):
 				os.remove(config.path)
-				logging.info('Removed config file for %s at %s' % (self.service, config.path))
+				logger.info('Removed config file for %s at %s' % (self.service, config.path))
 
 		self.reload()
 
@@ -1582,13 +1617,13 @@ class BaseService(ABC):
 		for file in self.get_save_files():
 			file_path = os.path.join(base, file)
 			if os.path.isdir(file_path):
-				logging.info('Removing directory: %s' % file_path)
+				logger.info('Removing directory: %s' % file_path)
 				shutil.rmtree(file_path)
 			elif os.path.isfile(file_path):
-				logging.info('Removing file: %s' % file_path)
+				logger.info('Removing file: %s' % file_path)
 				os.remove(file_path)
 			else:
-				logging.info('Skipping non-present file: %s' % file_path)
+				logger.info('Skipping non-present file: %s' % file_path)
 
 	def get_enabled_mods(self) -> list['BaseMod']:
 		"""
@@ -1619,10 +1654,10 @@ class BaseService(ABC):
 		"""
 		if mod.dependencies:
 			for dep in mod.dependencies:
-				logging.info('Ensuring dependency %s is installed' % dep)
+				logger.info('Ensuring dependency %s is installed' % dep)
 				dep_mod = self.game.mod_handler.get_mod(self, mod.provider, dep)
 				if not dep_mod:
-					logging.error('Failed to find dependency %s for mod %s' % (dep, mod.name))
+					logger.error('Failed to find dependency %s for mod %s' % (dep, mod.name))
 				else:
 					self.add_mod(dep_mod)
 
@@ -1653,7 +1688,7 @@ class BaseService(ABC):
 		for file in mod.files.values():
 			target = os.path.join(self.get_app_directory(), file)
 			if os.path.exists(target) and os.path.isfile(target):
-				logging.info('Removing file %s' % file)
+				logger.info('Removing file %s' % file)
 				os.remove(target)
 
 		# Second pass, remove all directories, any non-empty directory probably contains other files
@@ -1661,9 +1696,9 @@ class BaseService(ABC):
 			target = os.path.join(self.get_app_directory(), file)
 			if os.path.exists(target) and os.path.isdir(target):
 				if os.listdir(target):
-					logging.warning('Directory %s is not empty, skipping removal' % target)
+					logger.warning('Directory %s is not empty, skipping removal' % target)
 				else:
-					logging.info('Removing directory %s' % target)
+					logger.info('Removing directory %s' % target)
 					os.rmdir(target)
 
 	def get_mod(self, provider: str, mod_id: str | int) -> 'BaseMod | None':
@@ -1699,10 +1734,10 @@ class BaseService(ABC):
 				continue
 
 			if mode == 'all' and not os.path.exists(target):
-				logging.warning('File %s is missing from game' % file)
+				logger.warning('File %s is missing from game' % file)
 				return False
 			elif mode == 'any' and os.path.exists(target):
-				logging.warning('File %s present in game' % file)
+				logger.warning('File %s present in game' % file)
 				return True
 		return True if mode == 'all' else False
 
@@ -1721,12 +1756,12 @@ class BaseService(ABC):
 
 			if target_file.endswith('/'):
 				# Target is just a directory, ensure it exists.
-				logging.info('Creating directory: %s' % target_file)
+				logger.info('Creating directory: %s' % target_file)
 				utils.makedirs(target_file)
 			elif source == '@':
 				# Source is the package itself; this just copies the entire mod into the destination.
 				source_file = os.path.join(utils.get_base_directory(), 'Packages', mod.package)
-				logging.info('Copying %s -> %s' % (source_file, target_file))
+				logger.info('Copying %s -> %s' % (source_file, target_file))
 				shutil.copy(source_file, target_file)
 				utils.ensure_file_ownership(target_file)
 			elif source.startswith('@:'):
@@ -1734,16 +1769,16 @@ class BaseService(ABC):
 				source_file = source[2:]
 				source_archive = os.path.join(utils.get_base_directory(), 'Packages', mod.package)
 				if source_archive.endswith('.zip'):
-					logging.info('Extracting %s -> %s' % (source_file, target_file))
+					logger.info('Extracting %s -> %s' % (source_file, target_file))
 					with ZipFile(source_archive, 'r') as zip_ref:
 						with zip_ref.open(source_file) as f, open(target_file, 'wb') as out_file:
 							shutil.copyfileobj(f, out_file)
 					utils.ensure_file_ownership(target_file)
 				else:
-					logging.error('Cannot install mod %s: Package %s is not a ZIP archive' % (mod.name, mod.package))
+					logger.error('Cannot install mod %s: Package %s is not a ZIP archive' % (mod.name, mod.package))
 					return False
 			else:
-				logging.error('Cannot install mod %s: Invalid source path %s' % (mod.name, source))
+				logger.error('Cannot install mod %s: Invalid source path %s' % (mod.name, source))
 				return False
 		return True
 

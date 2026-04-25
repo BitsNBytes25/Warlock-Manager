@@ -1,5 +1,5 @@
 from warlock_manager.libs.cmd import Cmd
-import logging
+from warlock_manager.libs.logger import logger
 
 
 class Firewall:
@@ -92,11 +92,11 @@ class Firewall:
 		"""
 
 		if port <= 0 or port >= 65536:
-			logging.error(f"Invalid port number: {port}")
+			logger.error(f"Invalid port number: {port}")
 			return False
 
 		if protocol.lower() not in ['tcp', 'udp']:
-			logging.error(f"Invalid protocol: {protocol}")
+			logger.error(f"Invalid protocol: {protocol}")
 			return False
 
 		firewall = cls.get_available()
@@ -104,20 +104,20 @@ class Firewall:
 		if firewall == 'ufw':
 			# UFW requires the protocol to be all lowercase.
 			protocol = protocol.lower()
-			logging.info(f"Allowing {port}/{protocol} via UFW")
+			logger.info(f"Allowing {port}/{protocol} via UFW")
 			cmd = Cmd(['ufw', 'allow', f'{port}/{protocol}'])
 			if comment:
 				cmd.extend(['comment', comment])
 			return cmd.success
 
 		elif firewall == 'firewalld':
-			logging.info(f"Allowing {port}/{protocol} via Firewalld")
+			logger.info(f"Allowing {port}/{protocol} via Firewalld")
 			if Cmd(['firewall-cmd', '--permanent', '--add-port', f'{port}/{protocol}']).success:
 				Cmd(['firewall-cmd', '--reload']).run()
 				return True
 
 		elif firewall == 'iptables':
-			logging.info(f"Allowing {port}/{protocol} via iptables")
+			logger.info(f"Allowing {port}/{protocol} via iptables")
 			cmd = Cmd(['iptables', '-A', 'INPUT', '-p', protocol, '--dport', str(port), '-j', 'ACCEPT'])
 			if comment:
 				cmd.extend(['-m', 'comment', '--comment', comment])
@@ -126,7 +126,7 @@ class Firewall:
 				return True
 
 		else:
-			logging.error('No supported firewall found on the system.')
+			logger.error('No supported firewall found on the system.')
 
 		return False
 
@@ -142,11 +142,11 @@ class Firewall:
 		"""
 
 		if port <= 0 or port >= 65536:
-			logging.error(f"Invalid port number: {port}")
+			logger.error(f"Invalid port number: {port}")
 			return False
 
 		if protocol.lower() not in ['tcp', 'udp']:
-			logging.error(f"Invalid protocol: {protocol}")
+			logger.error(f"Invalid protocol: {protocol}")
 			return False
 
 		firewall = cls.get_available()
@@ -165,7 +165,7 @@ class Firewall:
 				return True
 
 		else:
-			logging.error('No supported firewall found on the system.')
+			logger.error('No supported firewall found on the system.')
 
 		return False
 
@@ -219,5 +219,5 @@ class Firewall:
 			return False
 
 		else:
-			logging.error('No supported firewall found on the system.')
+			logger.error('No supported firewall found on the system.')
 			return True  # No firewall means it's probably enabled by default, so we return true.

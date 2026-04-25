@@ -1,9 +1,9 @@
-import logging
 import requests
 import json
 from warlock_manager.libs import utils
 from warlock_manager.libs import cache
 from warlock_manager.libs.meta import get_meta
+from warlock_manager.libs.logger import logger
 
 # "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 USER_AGENT = 'Warlock Manager/%s (warlock.nexus) <staff@bitsnbytes.dev>' % get_meta()['version']
@@ -18,7 +18,7 @@ def download_file(url: str, destination: str):
     :param destination: The local file path to save the downloaded file to
     :return:
     """
-    logging.debug('Downloading file %s to %s' % (url, destination))
+    logger.debug('Downloading file %s to %s' % (url, destination))
     # Ensure the target directory exists
     utils.ensure_file_parent_exists(destination)
 
@@ -44,7 +44,7 @@ def download_json(url: str) -> dict:
     :param url: The URL to download from
     :return: The JSON data as a dictionary
     """
-    logging.debug('Downloading JSON %s' % url)
+    logger.debug('Downloading JSON %s' % url)
 
     # Try the cache first
     cached = cache.get_cache(url)

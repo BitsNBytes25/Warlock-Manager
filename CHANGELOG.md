@@ -21,6 +21,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.9] - 2026-04-25
+
+### Added
+
+- Add new logger interface for custom logging
+- Add BaseService.get_pids to get ALL pids for a service
+
+### Changed
+
+- Switch from using system default logging to custom logger to fix --debug issues with dependencies
+- Set services to support lazy loading of configs for performance
+- Other little adjustments to try to improve performance
+- Switch port lookup to check against all pids for ownership (fix for ARK and other Proton games)
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+- BaseService.build_environment_file - Ensure Environments exists before attempting to write to them
+- Fix SteamApp.update for restarting active instances after the update
+
+### Security
+
+
 ## [2.2.8] - 2026-04-23
 
 ### Added
@@ -325,6 +351,7 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.2.9**: Better logging support and various fixes for Steam and Proton
 - **v2.2.8**: Support for Proton installations
 - **v2.2.7**: Cloudflare is an asshole
 - **v2.2.6**: Fixes to Firewall and Cmd libraries
@@ -344,6 +371,7 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.9]: https://pypi.org/project/warlock-manager/2.2.9
 [2.2.8]: https://pypi.org/project/warlock-manager/2.2.8
 [2.2.7]: https://pypi.org/project/warlock-manager/2.2.7
 [2.2.6]: https://pypi.org/project/warlock-manager/2.2.6

@@ -1,4 +1,3 @@
-import logging
 import os
 import sys
 
@@ -9,6 +8,7 @@ from warlock_manager.libs.tui import print_header, Table, print_subheader, promp
 	prompt_long_text
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.services.base_service import BaseService
+from warlock_manager.libs.logger import logger
 
 
 ICON_ENABLED = '✅'
@@ -223,11 +223,11 @@ def menu_mods(source: BaseService):
 				if add_help is not None:
 					add_help = add_help.strip().split('\n')[0].strip()
 				else:
-					logging.debug('Mod handler does not provide help for mods search.')
+					logger.debug('Mod handler does not provide help for mods search.')
 			else:
-				logging.debug('Mod handler does not support mods search.')
+				logger.debug('Mod handler does not support mods search.')
 		else:
-			logging.error('Mod handler is not available for this application.')
+			logger.error('Mod handler is not available for this application.')
 			return
 
 		counter = 0
@@ -435,7 +435,7 @@ def menu_service(service: BaseService):
 
 		if opt.isdigit() and 1 <= int(opt) <= counter:
 			if service.is_running():
-				logging.warning('Cannot configure options for a service while it is running.')
+				logger.warning('Cannot configure options for a service while it is running.')
 			else:
 				menu_config_option(service, options_ordered[int(opt) - 1])
 		elif opt == 'b':

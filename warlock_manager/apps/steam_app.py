@@ -3,11 +3,11 @@ import re
 import sys
 import time
 from abc import ABC
-import logging
 
-from .base_app import BaseApp
+from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.libs.cmd import Cmd
 from warlock_manager.libs import utils
+from warlock_manager.libs.logger import logger
 
 
 def guess_steamcmd_path() -> str:
@@ -21,7 +21,7 @@ def guess_steamcmd_path() -> str:
 	)
 	for path in paths:
 		if os.path.exists(path):
-			logging.debug('Found steamcmd at %s' % path)
+			logger.debug('Found steamcmd at %s' % path)
 			return path
 	raise FileNotFoundError('steamcmd not found in common locations. Please ensure steamcmd is installed.')
 
@@ -290,11 +290,11 @@ class SteamApp(BaseApp, ABC):
 			return []
 
 		if 'depots' not in info:
-			logging.warning(f"No depot information found for app {self.steam_id}.")
+			logger.warning(f"No depot information found for app {self.steam_id}.")
 			return []
 
 		if 'branches' not in info['depots']:
-			logging.warning(f"No branch information found for app {self.steam_id}.")
+			logger.warning(f"No branch information found for app {self.steam_id}.")
 			return []
 
 		return list(info['depots']['branches'].keys())
@@ -366,18 +366,18 @@ class SteamApp(BaseApp, ABC):
 
 		:return:
 		"""
-		logging.info('Updating game %s via Steam...' % self.name)
+		logger.info('Updating game %s via Steam...' % self.name)
 		# Stop any running services before updating
 		services = []
 		for service in self.get_services():
 			if service.is_running() or service.is_starting():
-				logging.info('Stopping service %s for update...' % service.service)
-				services.append(service.service)
+				logger.info('Stopping service %s for update...' % service.service)
+				services.append(service)
 				service.stop()
 
 		if len(services) > 0:
 			# Wait for all services to stop, may take 5 minutes if players are online.
-			logging.info('Waiting up to 5 minutes for all services to stop...')
+			logger.info('Waiting up to 5 minutes for all services to stop...')
 			counter = 0
 			while counter < 30:
 				all_stopped = True
@@ -390,7 +390,7 @@ class SteamApp(BaseApp, ABC):
 					break
 				time.sleep(10)
 		else:
-			logging.info('No running services found, proceeding with update...')
+			logger.info('No running services found, proceeding with update...')
 
 		cmd = Cmd([
 			guess_steamcmd_path(),
@@ -423,7 +423,7 @@ class SteamApp(BaseApp, ABC):
 		self.post_update()
 
 		if len(services) > 0:
-			logging.info('Update completed, restarting previously running services...')
+			logger.info('Update completed, restarting previously running services...')
 			for service in services:
 				service.start()
 

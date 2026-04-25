@@ -1,7 +1,6 @@
-import logging
-
 from warlock_manager.libs.version import extract_version_from_string, parse_version
 from warlock_manager.libs.cmd import Cmd
+from warlock_manager.libs.logger import logger
 
 
 def get_java_paths() -> list[str]:
@@ -50,7 +49,7 @@ def _check_java_versions(java_paths: list[str], target_version: int) -> str | No
 	:param target_version: The major Java version to find
 	:return: The path to the matching Java executable, or None if not found
 	"""
-	logging.debug('Searching for Java version %d' % target_version)
+	logger.debug('Searching for Java version %d' % target_version)
 	for java_path in java_paths:
 		result = Cmd([java_path, '-version'])
 		# Java version information is typically printed to stderr, so we need to use that instead of stdout.
@@ -62,7 +61,7 @@ def _check_java_versions(java_paths: list[str], target_version: int) -> str | No
 			# Use the version library to parse this version string.
 			version_str = extract_version_from_string(version_str)
 			version = parse_version(version_str)
-			logging.debug('%s => %s' % (java_path, version))
+			logger.debug('%s => %s' % (java_path, version))
 			if version.major == 1:
 				# For Java 8 and earlier, the version string starts with "1.", so we need to check the minor version
 				if version.minor == target_version:

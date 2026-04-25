@@ -3,9 +3,9 @@ from typing import Union
 import configparser
 import tempfile
 import os
-import logging
 
 from warlock_manager.config.base_config import BaseConfig
+from warlock_manager.libs.logger import logger
 
 
 class INIConfig(BaseConfig):
@@ -65,13 +65,13 @@ class INIConfig(BaseConfig):
 			section = self.group
 
 		if section is None:
-			logging.error(
+			logger.error(
 				'Cannot set INI config value for option %s because it does not have a section defined!' %
 				name
 			)
 			return
 
-		logging.debug('Setting INI config value: %s => [%s] %s = %s' % (name, section, opt.key, str_value))
+		logger.debug('Setting INI config value: %s => [%s] %s = %s' % (name, section, opt.key, str_value))
 
 		# Escape '%' characters that may be present
 		str_value = str_value.replace('%', '%%')
@@ -118,10 +118,10 @@ class INIConfig(BaseConfig):
 			if self.spoof_group:
 				with open(self.path, 'r') as f:
 					self.parser.read_string('[%s]\n' % self.group + f.read())
-				logging.debug('Loaded INI config %s with spoofed group: %s' % (self.path, self.group))
+				logger.debug('Loaded INI config %s with spoofed group: %s' % (self.path, self.group))
 			else:
 				self.parser.read(self.path)
-				logging.debug('Loaded INI config: %s' % self.path)
+				logger.debug('Loaded INI config: %s' % self.path)
 
 	def save(self):
 		"""

@@ -1,31 +1,14 @@
 import json
 import logging
-import inspect
 import sys
 import typer
 from typing import Annotated
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.services.base_service import BaseService
-from warlock_manager.libs.sensitive_data_filter import sensitive_data_filter
 from warlock_manager.libs.app import default_menu_main
 from warlock_manager.libs.meta import get_meta
 from warlock_manager.nexus.nexus import Nexus
-
-
-class ClassNameFilter(logging.Filter):
-	def filter(self, record):
-		# Try to get the class name from the call stack
-		frame = inspect.currentframe()
-		while frame:
-			if 'self' in frame.f_locals:
-				class_name = frame.f_locals['self'].__class__.__name__
-				if class_name not in ['ClassNameFilter', 'RootLogger']:
-					record.classname = frame.f_locals['self'].__class__.__name__
-					break
-			frame = frame.f_back
-		else:
-			record.classname = ''
-		return True
+from warlock_manager.libs.logger import logger
 
 
 def app_runner(game: BaseApp):
@@ -54,6 +37,7 @@ def app_runner(game: BaseApp):
 		:param value:
 		:return: BaseService | None
 		"""
+		logger.debug('Resolving service: %s' % value)
 		if value is None:
 			return None
 		services = game.get_services()
@@ -127,16 +111,10 @@ def app_runner(game: BaseApp):
 		debug: arg_debug = False
 	):
 		log_level = logging.DEBUG if debug else logging.INFO
-		logging.basicConfig(
-			level=log_level,
-			format='%(asctime)s [%(levelname)s] %(classname)s.%(funcName)s: %(message)s',
-			force=True
-		)
-		logging.getLogger().addFilter(ClassNameFilter())
-		logging.getLogger().addFilter(sensitive_data_filter)
+		logger.setLevel(log_level)
 
 		if debug:
-			logging.debug('Debug logging enabled')
+			logger.debug('Debug logging enabled')
 
 		# If no subcommand was provided, call main()
 		if ctx.invoked_subcommand is None:
@@ -257,7 +235,7 @@ def app_runner(game: BaseApp):
 			sys.exit(0 if service.backup(max_backups) else 1)
 		else:
 			if len(game.get_services()) == 0:
-				logging.warning('No services are available for backup, nothing to do.')
+				logger.warning('No services are available for backup, nothing to do.')
 				sys.exit(1)
 			success = True
 			for svc in game.get_services():
@@ -394,6 +372,7 @@ def app_runner(game: BaseApp):
 		:param service: BaseService | None
 		:return:
 		"""
+		logger.debug('Running get_metrics()')
 		nexus = Nexus()
 		if service and isinstance(service, BaseService):
 			services: list[BaseService] = [service]

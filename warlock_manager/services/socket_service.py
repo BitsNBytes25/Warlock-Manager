@@ -2,7 +2,6 @@ import os
 import subprocess
 import time
 from abc import ABC
-import logging
 import threading
 from queue import Queue
 from typing import Callable, Optional
@@ -12,6 +11,7 @@ from typing_extensions import deprecated
 
 from warlock_manager.apps.base_app import BaseApp
 from warlock_manager.services.base_service import BaseService
+from warlock_manager.libs.logger import logger
 
 
 class SocketService(BaseService, ABC):
@@ -49,15 +49,15 @@ class SocketService(BaseService, ABC):
 		:return:
 		"""
 		if not self.is_api_enabled():
-			logging.warning('API is not available for this service right now, unable to send command.')
+			logger.warning('API is not available for this service right now, unable to send command.')
 			return None
 
 		port_open = self.is_port_open()
 		if port_open is False:
-			logging.warning('Port is not open for this service right now, refusing to send command.')
+			logger.warning('Port is not open for this service right now, refusing to send command.')
 			return None
 
-		logging.debug('Sending command to %s: %s' % (self.service, cmd))
+		logger.debug('Sending command to %s: %s' % (self.service, cmd))
 		with open(self.socket, 'w') as f:
 			f.write(cmd + '\n')
 
@@ -74,7 +74,7 @@ class SocketService(BaseService, ABC):
 		:return:
 		"""
 		if not self.socket or not os.path.exists(self.socket):
-			logging.warning('Socket file %s does not exist, unable to write to it.' % self.socket)
+			logger.warning('Socket file %s does not exist, unable to write to it.' % self.socket)
 			return
 
 		with open(self.socket, 'w') as f:
@@ -120,7 +120,7 @@ class SocketService(BaseService, ABC):
 					process.terminate()
 
 			except Exception as e:
-				logging.error(f'Error starting process: {e}')
+				logger.error(f'Error starting process: {e}')
 				process_exception.append(e)
 			finally:
 				# Signal end of stream
@@ -137,14 +137,14 @@ class SocketService(BaseService, ABC):
 			while True:
 				# Check for overall timeout
 				if time.time() - start_time > timeout:
-					logging.debug(f'Watch timeout reached ({timeout}s)')
+					logger.debug(f'Watch timeout reached ({timeout}s)')
 					stop_event.set()
 					return False
 
 				# Check for extended timeout (0.5s after last True)
 				if last_true_time is not None:
 					if time.time() - last_true_time > 0.3:
-						logging.debug('Extended timeout reached (0.3s after last True)')
+						logger.debug('Extended timeout reached (0.3s after last True)')
 						stop_event.set()
 						return False
 
@@ -166,19 +166,19 @@ class SocketService(BaseService, ABC):
 
 						if response is False:
 							# Callback signaled completion
-							logging.debug('Callback returned False, stopping watch')
+							logger.debug('Callback returned False, stopping watch')
 							stop_event.set()
 							return True
 
 						elif response is True:
 							# Update the extended timeout
 							last_true_time = time.time()
-							logging.debug('Callback returned True, extending timeout')
+							logger.debug('Callback returned True, extending timeout')
 
 						# None/other: continue watching without extending timeout
 
 					except Exception as e:
-						logging.error(f'Error in watch callback: {e}')
+						logger.error(f'Error in watch callback: {e}')
 						stop_event.set()
 						raise
 
@@ -244,7 +244,7 @@ class SocketService(BaseService, ABC):
 		with open(path, 'w') as f:
 			config.write(f)
 
-		logging.info('Created systemd socket for %s at %s' % (self.service, path))
+		logger.info('Created systemd socket for %s at %s' % (self.service, path))
 
 	def remove_service(self):
 		"""
@@ -258,7 +258,7 @@ class SocketService(BaseService, ABC):
 			try:
 				os.remove(self.socket)
 			except Exception as e:
-				logging.error('Error removing socket file %s: %s' % (self.socket, str(e)))
+				logger.error('Error removing socket file %s: %s' % (self.socket, str(e)))
 
 		# Remove the systemd socket file
 		socket_path = os.path.join('/etc/systemd/system', os.path.basename(self.socket))
@@ -266,6 +266,6 @@ class SocketService(BaseService, ABC):
 			try:
 				os.remove(socket_path)
 			except Exception as e:
-				logging.error('Error removing systemd socket file %s: %s' % (socket_path, str(e)))
+				logger.error('Error removing systemd socket file %s: %s' % (socket_path, str(e)))
 
 		self.reload()
