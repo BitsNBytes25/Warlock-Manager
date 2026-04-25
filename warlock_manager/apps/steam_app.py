@@ -372,7 +372,7 @@ class SteamApp(BaseApp, ABC):
 		for service in self.get_services():
 			if service.is_running() or service.is_starting():
 				logger.info('Stopping service %s for update...' % service.service)
-				services.append(service.service)
+				services.append(service)
 				service.stop()
 
 		if len(services) > 0:

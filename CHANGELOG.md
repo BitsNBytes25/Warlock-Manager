@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - BaseService.build_environment_file - Ensure Environments exists before attempting to write to them
+- Fix SteamApp.update for restarting active instances after the update
 
 ### Security
 
