@@ -655,7 +655,7 @@ def menu_public():
 				for social in full_details['data']['socials'][1:]:
 					table.add(['', '', social])
 
-			if full_details['data']['description'] == '':
+			if full_details['data']['description'] == '' or full_details['data']['description'] is None:
 				desc = 'No description set'
 			else:
 				desc = 'Description set and %s characters long' % len(full_details['data']['description'])
