@@ -1119,7 +1119,7 @@ class BaseService(ABC):
 		else:
 			self._delayed_action('update')
 
-	def post_update(self):
+	def post_update(self) -> bool:
 		"""
 		Perform any post-update actions needed for this game
 
@@ -1127,7 +1127,7 @@ class BaseService(ABC):
 
 		:return:
 		"""
-		pass
+		return True
 
 	def cmd(self, cmd: str) -> None | str:
 		"""

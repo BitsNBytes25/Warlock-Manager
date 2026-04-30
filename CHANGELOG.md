@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Set return statuses for SteamApp.update and BaseService.post_update as bool
+
 ### Deprecated
 
 ### Removed

@@ -491,8 +491,13 @@ class BaseApp(ABC):
 		:return:
 		"""
 		if self.multi_binary:
+			ret = True
 			for svc in self.get_services():
-				svc.update()
+				if not svc.update():
+					ret = False
+			if not ret:
+				logger.warning('One or more services failed to update, please check the logs for more information.')
+			return ret
 		return False
 
 	def post_update(self):

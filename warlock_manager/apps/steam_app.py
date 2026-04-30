@@ -360,7 +360,7 @@ class SteamApp(BaseApp, ABC):
 		available_build_id = latest['depots']['branches'][branch]['buildid']
 		return build_id != available_build_id
 
-	def update(self):
+	def update(self) -> bool:
 		"""
 		Update the game server via SteamCMD
 
@@ -418,9 +418,14 @@ class SteamApp(BaseApp, ABC):
 		cmd.append('+quit')
 
 		cmd.run()
+		if not cmd.success:
+			logger.error('Failed to update game via SteamCMD!  Please check above messages for what went wrong.')
+			return False
 
 		# Allow the game to perform any post-update tasks
-		self.post_update()
+		if self.post_update() is False:
+			logger.error('Failed to complete post-update tasks!')
+			return False
 
 		if len(services) > 0:
 			logger.info('Update completed, restarting previously running services...')
