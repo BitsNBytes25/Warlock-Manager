@@ -1,3 +1,6 @@
+# scriptlet:_common/package_install.sh
+# scriptlet:bz_eval_log/log.sh
+
 ##
 # Install the management script from the project's repo
 #
@@ -11,6 +14,8 @@
 # @param $3 Warlock Manager Branch to use (default: release-v2)
 #
 # CHANGELOG:
+#   20260430 - Install git if pip source is github
+#            - Return an exit code of 0 if successful, 1 otherwise
 #   20260326 - Add support for full version strings
 #   20260325 - Update to install warlock-manager from PyPI if a version number is specified instead of a branch name
 #   20260319 - Add third option to specify the version of Warlock Manager to use as the base
@@ -48,8 +53,8 @@ function install_warlock_manager() {
 	SRC="https://raw.githubusercontent.com/${REPO}/refs/heads/${BRANCH}/dist/manage.py"
 
 	if ! download "$SRC" "$GAME_DIR/manage.py"; then
-		echo "Could not download management script!" >&2
-		exit 1
+		log_error "Could not download management script!"
+		return 1
 	fi
 
 	chown $GAME_USER:$GAME_USER "$GAME_DIR/manage.py"
@@ -86,14 +91,26 @@ EOF
 	chown $GAME_USER:$GAME_USER "$GAME_DIR/.settings.ini"
 
 	# A python virtual environment is now required by Warlock-based managers.
-	sudo -u $GAME_USER python3 -m venv "$GAME_DIR/.venv"
+	if ! sudo -u $GAME_USER python3 -m venv "$GAME_DIR/.venv"; then
+		log_error "Could not set up virtual environment in $GAME_DIR/.venv!"
+		return 1
+	fi
+
 	sudo -u $GAME_USER "$GAME_DIR/.venv/bin/pip" install --upgrade pip
+
 	if [ "$MANAGER_SOURCE" == "pip" ]; then
 		# Install from PyPI with version specifier
-		sudo -u $GAME_USER "$GAME_DIR/.venv/bin/pip" install "warlock-manager${MANAGER_BRANCH}"
+		if ! sudo -u $GAME_USER "$GAME_DIR/.venv/bin/pip" install "warlock-manager${MANAGER_BRANCH}"; then
+			log_error "Could not install warlock-manager${MANAGER_BRANCH} from pip!"
+			return 1
+		fi
 	else
 		# Install directly from GitHub
-		sudo -u $GAME_USER "$GAME_DIR/.venv/bin/pip" install warlock-manager@git+https://github.com/BitsNBytes25/Warlock-Manager.git@$MANAGER_BRANCH
+		package_install git
+		if ! sudo -u $GAME_USER "$GAME_DIR/.venv/bin/pip" install warlock-manager@git+https://github.com/BitsNBytes25/Warlock-Manager.git@$MANAGER_BRANCH; then
+			log_error "Could not install warlock-manager from git branch $MANAGER_BRANCH!"
+			return 1
+		fi
 	fi
 
 	# Ensure warlock lib directory exists for supplemental data
@@ -104,5 +121,7 @@ EOF
     	cat /dev/urandom | tr -dc 'a-f0-9' | fold -w 64 | head -n 1 | tr -d '\n' > "/var/lib/warlock/.auth"
     fi
 	[ -e "/var/lib/warlock/.email" ] || touch /var/lib/warlock/.email
+
+	return 0
 }
 
