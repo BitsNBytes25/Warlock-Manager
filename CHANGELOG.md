@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set return statuses for SteamApp.update and BaseService.post_update as bool
 - Install git if pip source is github (useful in development/CI)
 - Bash install script updated to use return statuses and logging
+- RCONService.cmd now skips the attempt to run if the port is not open yet
 
 ### Deprecated
 
