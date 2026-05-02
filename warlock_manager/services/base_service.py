@@ -3,6 +3,7 @@ import os
 import shutil
 import sys
 import time
+import json
 from abc import abstractmethod, ABC
 from zipfile import ZipFile
 from SystemdUnitParser import SystemdUnitParser
@@ -292,6 +293,60 @@ class BaseService(ABC):
 		if not self.option_has_value(option):
 			default = self.get_option_default(option)
 			self.set_option(option, default)
+
+	def run_migrations(self):
+		"""
+		Run any migrations from the Migrations directory
+
+		Each migration is expected to be a JSON file with a list of options and their values.
+		For example:
+
+		```json
+		# Migrations/some-service.json
+		[
+		  {"option": "Key 1", "value": "Value 1"},
+		  ...
+		]
+		```
+
+		This is meant to be directly compatible with `get-configs` to ensure configurations persist
+		across upgrades which may implement different configuration backends
+
+		:return:
+		"""
+		migrations_path = os.path.join(utils.get_base_directory(), 'Migrations')
+		if not os.path.exists(migrations_path):
+			# No migrations to perform, not an error, just nothing to do.
+			logger.debug('No migrations to perform for %s' % self.service)
+			return
+
+		for filename in os.listdir(migrations_path):
+			# Only load files which start with this service name and end with .json.
+			# This allows for completed/failed migrations to persist in the same directory.
+			if filename.startswith(f"{self.service}.") and filename.endswith('.json'):
+				migration_file = os.path.join(migrations_path, filename)
+				migration_data = []
+				try:
+					with open(migration_file, 'r', encoding='utf-8') as f:
+						migration_data = json.load(f)
+				except Exception as e:
+					logger.error('Failed to load migration file for service %s: %s' % (self.service, e))
+					os.rename(migration_file, migration_file[:-5] + '.failed')
+					continue
+
+				success = True
+				for option in migration_data:
+					try:
+						self.set_option(option['option'], option['value'])
+					except Exception as e:
+						success = False
+						logger.error('Failed to migrate option %s for service %s: %s' % (option['name'], self.service, e))
+
+				# Do not remove migration files, the operator may need to refer back to these for investigations.
+				if success:
+					os.rename(migration_file, migration_file[:-5] + '.migrated')
+				else:
+					os.rename(migration_file, migration_file[:-5] + '.failed')
 
 	def get_name(self) -> str:
 		"""

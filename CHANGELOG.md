@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add BaseApp.run_migrations to support migrations between updates
+- Add BaseService.run_migrations to support migrations between updates
+
 ### Changed
 
 - Set return statuses for SteamApp.update and BaseService.post_update as bool
