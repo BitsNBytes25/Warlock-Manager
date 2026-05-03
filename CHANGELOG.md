@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
-## [2.2.10] - 
+## [2.2.10] - 2026-05-03
 
 ### Added
 
@@ -35,15 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bash install script updated to use return statuses and logging
 - RCONService.cmd now skips the attempt to run if the port is not open yet
 
-### Deprecated
-
-### Removed
-
 ### Fixed
 
 - Fix app.menu_public for when no description is set yet
-
-### Security
 
 
 ## [2.2.9] - 2026-04-25
