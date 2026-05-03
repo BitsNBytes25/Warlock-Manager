@@ -46,6 +46,10 @@ class TestCmd(unittest.TestCase):
 		cmd = Cmd(["echo", "ok"])
 		self.assertTrue(cmd.success)
 
+		# Test streaming output too
+		cmd = Cmd(['echo', 'ok']).stream_output()
+		self.assertTrue(cmd.success)
+
 	def test_exit_status(self):
 		cmd = Cmd(["echo", "ok"])
 		self.assertEqual(cmd.exit_status, 0)
@@ -54,6 +58,10 @@ class TestCmd(unittest.TestCase):
 		cmd = Cmd(["false"])
 		self.assertFalse(cmd.success)
 		self.assertNotEqual(cmd.exit_status, 0)
+
+		# Test streaming output too
+		cmd = Cmd(['false']).stream_output()
+		self.assertFalse(cmd.success)
 
 	def test_json_invalid(self):
 		cmd = Cmd(["echo", "notjson"])

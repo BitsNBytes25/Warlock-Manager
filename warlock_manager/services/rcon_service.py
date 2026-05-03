@@ -1,8 +1,8 @@
-import sys
 from rcon.source import Client
 from typing_extensions import deprecated
 
 from warlock_manager.services.base_service import BaseService
+from warlock_manager.libs.logger import logger
 
 
 class RCONService(BaseService):
@@ -31,12 +31,18 @@ class RCONService(BaseService):
 		# Safety checks to ensure we have the necessary info, (regardless of is_api_enabled)
 		port = self.get_api_port()
 		if port is None:
-			print("RCON port is not set!  Please populate get_api_port definition.", file=sys.stderr)
+			logger.warning('RCON port is not set!  Please populate get_api_port definition.')
 			return None
 
 		password = self.get_api_password()
 		if password is None:
-			print("RCON password is not set!  Please populate get_api_password definition.", file=sys.stderr)
+			logger.error("RCON password is not set!  Please populate get_api_password definition.")
+			return None
+
+		port_open = self.is_port_open()
+		if not port_open:
+			# If the port isn't open yet, don't try to execute the command.
+			logger.warning('Game ports not ready yet, unable to execute RCON command.')
 			return None
 
 		counter = 0
@@ -48,9 +54,9 @@ class RCONService(BaseService):
 					client.close()
 					return ret
 			except Exception as e:
-				print('Failed to establish RCON connection (attempt %s): %s' % (str(counter), str(e)), file=sys.stderr)
+				logger.warning('Failed to establish RCON connection (attempt %s): %s' % (str(counter), str(e)))
 
-		print('All RCON connection attempts failed.', file=sys.stderr)
+		logger.warning('All RCON connection attempts failed.')
 		return None
 
 	def get_player_count(self) -> int | None:

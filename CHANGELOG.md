@@ -21,6 +21,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.10] - 2026-05-03
+
+### Added
+
+- Add BaseApp.run_migrations to support migrations between updates
+- Add BaseService.run_migrations to support migrations between updates
+
+### Changed
+
+- Set return statuses for SteamApp.update and BaseService.post_update as bool
+- Install git if pip source is github (useful in development/CI)
+- Bash install script updated to use return statuses and logging
+- RCONService.cmd now skips the attempt to run if the port is not open yet
+
+### Fixed
+
+- Fix app.menu_public for when no description is set yet
+
+
 ## [2.2.9] - 2026-04-25
 
 ### Added
@@ -35,16 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Other little adjustments to try to improve performance
 - Switch port lookup to check against all pids for ownership (fix for ARK and other Proton games)
 
-### Deprecated
-
-### Removed
-
 ### Fixed
 
 - BaseService.build_environment_file - Ensure Environments exists before attempting to write to them
 - Fix SteamApp.update for restarting active instances after the update
-
-### Security
 
 
 ## [2.2.8] - 2026-04-23
