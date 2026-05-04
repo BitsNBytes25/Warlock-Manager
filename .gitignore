@@ -14,5 +14,8 @@ build/
 venv/
 env/
 
+# IntelliJ files
+.idea/webServers.xml
+
 # pytest cache
 .pytest_cache/

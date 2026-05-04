@@ -208,7 +208,7 @@ def menu_mods_search(source: BaseService, query: str):
 
 def menu_mods(source: BaseService):
 	while True:
-		add_help = None
+		add_help = False
 		handler = None
 		print_header('Mods Management')
 
@@ -219,11 +219,7 @@ def menu_mods(source: BaseService):
 
 		if handler is not None:
 			if hasattr(handler, 'find_mods'):
-				add_help = handler.find_mods.__doc__
-				if add_help is not None:
-					add_help = add_help.strip().split('\n')[0].strip()
-				else:
-					logger.debug('Mod handler does not provide help for mods search.')
+				add_help = True
 			else:
 				logger.debug('Mod handler does not support mods search.')
 		else:
@@ -253,7 +249,6 @@ def menu_mods(source: BaseService):
 
 		if configurable and add_help:
 			print('Enter text to search for a mod')
-			print(add_help)
 		print('or [B]ack to previous menu, [Q]uit to exit')
 		opt = input(': ').lower()
 		if opt.isdigit() and 1 <= int(opt) <= counter:
@@ -390,7 +385,7 @@ def menu_service(service: BaseService):
 			controls_configure.append(f'[1-{str(counter)}]')
 		controls_configure.append('other [O]ptions')
 
-		if 'mods' in features and service.game.mod_handler is not None:
+		if service.game.mod_handler is not None:
 			controls_configure.append('[M]ods')
 
 		if service.is_stopped():

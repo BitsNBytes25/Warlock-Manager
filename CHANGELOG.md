@@ -21,6 +21,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.11] - 2026-05-xx
+
+### Added
+
+### Changed
+
+- Adjust help text when searching for mods - Warlock.Nexus donation no longer required.
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+- Fix not displaying 'M' option for mods in TUI
+
+### Security
+
+
 ## [2.2.10] - 2026-05-03
 
 ### Added
