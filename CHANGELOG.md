@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
-## [2.2.11] - 2026-05-xx
+## [2.2.11] - 2026-05-07
 
 ### Added
 
@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix not displaying 'M' option for mods in TUI
+- BaseService.restart now calls systemd directly instead of stop/start; fix for background tasks.
 
 ### Security
 

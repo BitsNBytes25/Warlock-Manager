@@ -1121,8 +1121,7 @@ class BaseService(ABC):
 			print('%s is not currently running!' % self.service, file=sys.stderr)
 			return
 
-		self.stop()
-		self.start()
+		BackgroundCmd(['systemctl', 'restart', self.service]).run()
 
 	def delayed_restart(self):
 		"""
