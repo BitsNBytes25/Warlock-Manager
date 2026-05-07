@@ -12,7 +12,7 @@ class WarlockNexusMod(BaseMod):
 	@classmethod
 	def find_mods(cls, source: 'BaseService', mod_lookup: str) -> list['WarlockNexusMod']:
 		"""
-		Search for a mod via Warlock.Nexus, must be a sponsor to use this.
+		Search for a mod via Warlock.Nexus
 
 		:param source: Source game service to use for reference
 		:param mod_lookup: Query text to lookup
@@ -42,7 +42,7 @@ class WarlockNexusMod(BaseMod):
 	@classmethod
 	def get_mod(cls, source: 'BaseService', provider: str | None, mod_id: str | int) -> 'WarlockNexusMod | None':
 		"""
-		Get a specific mod by ID, must be a sponsor to use this.
+		Get a specific mod by ID
 
 		:param source:   Source game service to use for reference
 		:param provider: Mod provider, e.g. 'curseforge'
