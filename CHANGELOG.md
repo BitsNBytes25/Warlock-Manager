@@ -21,24 +21,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
-## [2.2.11] - 2026-05-07
+## [2.2.12] - 2026-05-08
 
-### Added
+### Fixed
+
+- Fix regression bug in BaseService._delayed_action for message not updating with time remaining
+
+
+## [2.2.11] - 2026-05-07
 
 ### Changed
 
 - Adjust help text when searching for mods - Warlock.Nexus donation no longer required.
 
-### Deprecated
-
-### Removed
-
 ### Fixed
 
 - Fix not displaying 'M' option for mods in TUI
 - BaseService.restart now calls systemd directly instead of stop/start; fix for background tasks.
-
-### Security
 
 
 ## [2.2.10] - 2026-05-03
@@ -384,6 +383,9 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.2.12**: Bug fix for player messages on restarts
+- **v2.2.11**: UI fixes for mod management in TUI
+- **v2.2.10**: Migration fixes
 - **v2.2.9**: Better logging support and various fixes for Steam and Proton
 - **v2.2.8**: Support for Proton installations
 - **v2.2.7**: Cloudflare is an asshole
@@ -404,6 +406,9 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.12]: https://pypi.org/project/warlock-manager/2.2.12
+[2.2.11]: https://pypi.org/project/warlock-manager/2.2.11
+[2.2.10]: https://pypi.org/project/warlock-manager/2.2.10
 [2.2.9]: https://pypi.org/project/warlock-manager/2.2.9
 [2.2.8]: https://pypi.org/project/warlock-manager/2.2.8
 [2.2.7]: https://pypi.org/project/warlock-manager/2.2.7
