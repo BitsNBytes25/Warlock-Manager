@@ -1055,18 +1055,19 @@ class BaseService(ABC):
 				# No players online, stop the timer
 				break
 
-			if '{time}' in msg:
-				msg = msg.replace('{time}', str(minutes_left))
-
 			if minutes_left <= 5:
 				# Once the timer hits 5 minutes left, drop to the standard stop procedure.
 				break
 
 			if minutes_left % 5 == 0:
-				self.send_message(msg)
+				if '{time}' in msg:
+					player_msg = msg.replace('{time}', str(minutes_left))
+				else:
+					player_msg = msg
+				self.send_message(player_msg)
 
-			if minutes_left % 5 == 0 and minutes_left > 5:
-				print('%s minutes remaining before %s.' % (str(minutes_left), action))
+				if minutes_left > 5:
+					print('%s minutes remaining before %s.' % (str(minutes_left), action))
 
 			time.sleep(60)
 
