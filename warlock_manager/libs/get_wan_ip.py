@@ -1,9 +1,8 @@
-from typing import Union
 from urllib import request
 from urllib import error as urllib_error
 
 
-def get_wan_ip() -> Union[str, None]:
+def get_wan_ip() -> str | None:
 	"""
 	Get the external IP address of this server
 	:return: str: The external IP address as a string, or None if it cannot be determined
