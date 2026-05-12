@@ -21,6 +21,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.13] - NEXT
+
+### Added
+
+- Add a get_local_ip function
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+
+
+
 ## [2.2.12] - 2026-05-08
 
 ### Fixed
