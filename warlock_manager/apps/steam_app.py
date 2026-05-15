@@ -392,30 +392,43 @@ class SteamApp(BaseApp, ABC):
 		else:
 			logger.info('No running services found, proceeding with update...')
 
+		# Start the command for steamcmd; as per Steam docs, this must start with +force_install_dir as the base path.
 		cmd = Cmd([
 			guess_steamcmd_path(),
 			'+force_install_dir',
-			os.path.join(utils.get_base_directory(), 'AppFiles'),
-			'+login',
-			'anonymous',
-			'+app_update',
-			self.steam_id,
+			os.path.join(utils.get_base_directory(), 'AppFiles')
 		])
-		cmd.sudo(utils.get_app_uid())
-		cmd.stream_output()
 
-		branch = self.get_option_value('Steam Branch')
-		branch_password = self.get_option_value('Steam Branch Password')
+		if self.has_option('Steam Username'):
+			# This application is configured to require Steam authentication for updates/installations!
+			if not self.get_option_value('Steam Username'):
+				logger.error('Steam Username is required for this application!')
+				return False
+			cmd.extend(['+login', self.get_option_value('Steam Username')])
+		else:
+			# Normal behaviour; just use anonymous for accessing the Steam library.
+			cmd.extend(['+login', 'anonymous'])
 
-		if branch != 'public':
-			cmd.append('-beta')
-			cmd.append(branch)
-			if branch_password != '':
-				cmd.append('-betapassword')
-				cmd.append(branch_password)
+		# Update / validate the steam application
+		cmd.extend(['+app_update', self.steam_id])
+
+		if self.has_option('Steam Branch'):
+			# Most Steam games will have a branch option, probably as "public", but check just in case.
+			branch = self.get_option_value('Steam Branch')
+			branch_password = self.get_option_value('Steam Branch Password')
+
+			if branch != 'public':
+				cmd.extend(['-beta', branch])
+				if branch_password != '':
+					cmd.extend(['-betapassword', branch_password])
 
 		cmd.append('validate')
+
+		# Close the steam connection once validated / updated.
 		cmd.append('+quit')
+
+		cmd.sudo(utils.get_app_uid())
+		cmd.stream_output()
 
 		cmd.run()
 		if not cmd.success:
