@@ -5,7 +5,7 @@ import time
 from abc import ABC
 
 from warlock_manager.apps.base_app import BaseApp
-from warlock_manager.libs.cmd import Cmd
+from warlock_manager.libs.cmd import Cmd, PtyCmd
 from warlock_manager.libs import utils
 from warlock_manager.libs.logger import logger
 
@@ -393,7 +393,7 @@ class SteamApp(BaseApp, ABC):
 			logger.info('No running services found, proceeding with update...')
 
 		# Start the command for steamcmd; as per Steam docs, this must start with +force_install_dir as the base path.
-		cmd = Cmd([
+		cmd = PtyCmd([
 			guess_steamcmd_path(),
 			'+force_install_dir',
 			os.path.join(utils.get_base_directory(), 'AppFiles')
@@ -428,7 +428,7 @@ class SteamApp(BaseApp, ABC):
 		cmd.append('+quit')
 
 		cmd.sudo(utils.get_app_uid())
-		cmd.stream_output()
+		# cmd.stream_output()
 
 		cmd.run()
 		if not cmd.success:
