@@ -66,8 +66,11 @@ class ArmaServerConfig(BaseConfig):
 
 			# Set the mapped type based on the value
 			index = self._index_cache[name]
-			if opt.val_type == 'str':
-				self.data[index]['val_type'] = 'str'
+
+		if self.data[index]['key'].endswith('[]') and isinstance(value, list):
+			self.data[index]['val_type'] = 'array'
+		elif opt.val_type == 'str':
+			self.data[index]['val_type'] = 'str'
 
 	def has_value(self, name: str) -> bool:
 		"""
