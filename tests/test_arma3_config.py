@@ -31,13 +31,23 @@ class TestArma3Config(unittest.TestCase):
 			'key': 'hostname',
 		})
 		cfg.add_option({
+			'name': 'MOTD',
+			'key': 'motd[]',
+			'type': 'text'
+		})
+		cfg.add_option({
 			'name': 'Some New Key',
 			'key': 'some_new_key',
 		})
 		cfg.add_option({
 			'name': 'Some Number',
 			'key': 'some_num_key',
-			'val_type': 'int'
+			'type': 'int'
+		})
+		cfg.add_option({
+			'name': 'Max Players',
+			'key': 'maxPlayers',
+			'type': 'int'
 		})
 		cfg.load()
 
@@ -57,6 +67,14 @@ class TestArma3Config(unittest.TestCase):
 		self.assertEqual(123, cfg.get_value('Some Number'))
 		self.assertTrue(cfg.has_value('Some Number'))
 		self.assertIn('some_num_key = 123;', cfg.fetch())
+
+		cfg.set_value('Max Players', '100')
+		self.assertEqual(100, cfg.get_value('Max Players'))
+		self.assertIn('maxPlayers = 100;', cfg.fetch())
+
+		self.assertEqual(10, len(cfg.get_value('MOTD')))
+		cfg.set_value('MOTD', ['Line 1', 'Line 2'])
+		self.assertEqual(['Line 1', 'Line 2'], cfg.get_value('MOTD'))
 
 
 if __name__ == '__main__':

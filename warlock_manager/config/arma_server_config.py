@@ -42,7 +42,7 @@ class ArmaServerConfig(BaseConfig):
 
 		return opt.to_system_type(val)
 
-	def set_value(self, name: str, value: Union[str, int, bool]):
+	def set_value(self, name: str, value: Union[str, int, bool, float, list]):
 		"""
 		Set a configuration option in the config
 
@@ -66,7 +66,7 @@ class ArmaServerConfig(BaseConfig):
 
 			# Set the mapped type based on the value
 			index = self._index_cache[name]
-			if isinstance(value, str):
+			if opt.val_type == 'str':
 				self.data[index]['val_type'] = 'str'
 
 	def has_value(self, name: str) -> bool:
@@ -252,7 +252,7 @@ class ArmaServerConfig(BaseConfig):
 
 		# Record an index if this is a mapped key
 		try:
-			lookup_name = self._keys[line_key]
+			lookup_name = self._keys[line_key.lower()]
 			self._index_cache[lookup_name] = len(self.data)
 		except KeyError:
 			pass
