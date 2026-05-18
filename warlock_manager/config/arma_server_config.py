@@ -222,7 +222,7 @@ class ArmaServerConfig(BaseConfig):
 		# Clean up wrapper quotes if they exist in string variables
 		if line_key.endswith('[]'):
 			line_type = 'array'
-		elif line_val.startswith('"') and line_val.endswith('"'):
+		elif isinstance(line_val, str) and line_val.startswith('"') and line_val.endswith('"'):
 			line_val = line_val[1:-1]
 			line_type = 'str'
 		else:
