@@ -78,6 +78,8 @@ def menu_config_option(source: BaseApp | BaseService, option: str):
 		new_val = prompt_yn(prompt=option, default='y' if val_default else 'n')
 	elif val_opts:
 		new_val = prompt_options(options=val_opts, default=val_default)
+	elif val_type == 'text':
+		new_val = prompt_long_text(prompt=option, default=val_default)
 	else:
 		new_val = prompt_text(prefill=True, default=str(val_default))
 

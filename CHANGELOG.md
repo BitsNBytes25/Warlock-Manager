@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Adjust get_wan_ip to not require Union
 - Switch configuration loaders to use logger instead of print messages
+- Configuration fields marked as "text" now render with the full text editor
 
 ### Deprecated
 
