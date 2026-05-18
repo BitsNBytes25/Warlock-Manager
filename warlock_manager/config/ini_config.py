@@ -1,4 +1,3 @@
-import sys
 from typing import Union
 import configparser
 import tempfile
@@ -28,7 +27,7 @@ class INIConfig(BaseConfig):
 		:return:
 		"""
 		if name not in self.options:
-			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
+			logger.error('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)))
 			return ''
 
 		opt = self.options[name]
@@ -53,7 +52,7 @@ class INIConfig(BaseConfig):
 		:return:
 		"""
 		if name not in self.options:
-			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
+			logger.error('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)))
 			return
 
 		opt = self.options[name]

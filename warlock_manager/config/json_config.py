@@ -1,9 +1,9 @@
-import sys
 from typing import Union
 import json
 import os
 
 from warlock_manager.config.base_config import BaseConfig
+from warlock_manager.libs.logger import logger
 
 
 class JSONConfig(BaseConfig):
@@ -21,7 +21,7 @@ class JSONConfig(BaseConfig):
 		:return:
 		"""
 		if name not in self.options:
-			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
+			logger.error('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)))
 			return ''
 
 		opt = self.options[name]
@@ -49,7 +49,7 @@ class JSONConfig(BaseConfig):
 		:return:
 		"""
 		if name not in self.options:
-			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
+			logger.error('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)))
 			return
 
 		opt = self.options[name]
