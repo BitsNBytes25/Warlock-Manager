@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a get_local_ip function
 - Add BaseApp.has_option to check if an app has a given option
 - Add support for authenticated Steam installs
+- Add Arma3 server configuration parser
 
 ### Changed
 
