@@ -75,6 +75,59 @@ class TestArma3Config(unittest.TestCase):
 		self.assertEqual(10, len(cfg.get_value('MOTD')))
 		cfg.set_value('MOTD', ['Line 1', 'Line 2'])
 		self.assertEqual(['Line 1', 'Line 2'], cfg.get_value('MOTD'))
+		self.assertIn('motd[] = {"Line 1", "Line 2"};', cfg.fetch())
+
+	def test_new(self):
+		cfg = ArmaServerConfig('test', '/tmp/nonexistent_test_file_xyz123.cfg')
+		cfg.add_option({
+			'name': 'Hostname',
+			'key': 'hostname',
+		})
+		cfg.add_option({
+			'name': 'MOTD',
+			'key': 'motd[]',
+			'type': 'text'
+		})
+		cfg.add_option({
+			'name': 'Some New Key',
+			'key': 'some_new_key',
+		})
+		cfg.add_option({
+			'name': 'Some Number',
+			'key': 'some_num_key',
+			'type': 'int'
+		})
+		cfg.add_option({
+			'name': 'Max Players',
+			'key': 'maxPlayers',
+			'type': 'int'
+		})
+
+		self.assertFalse(cfg.has_value('Hostname'))
+		cfg.set_value('Hostname', 'New Server Name')
+		self.assertEqual('New Server Name', cfg.get_value('Hostname'))
+		self.assertTrue(cfg.has_value('Hostname'))
+		self.assertIn('hostname = "New Server Name";', cfg.fetch())
+
+		self.assertFalse(cfg.has_value('Some New Key'))
+		cfg.set_value('Some New Key', 'New Value')
+		self.assertEqual('New Value', cfg.get_value('Some New Key'))
+		self.assertTrue(cfg.has_value('Some New Key'))
+		self.assertIn('some_new_key = "New Value";', cfg.fetch())
+
+		self.assertFalse(cfg.has_value('Some Number'))
+		cfg.set_value('Some Number', 123)
+		self.assertEqual(123, cfg.get_value('Some Number'))
+		self.assertTrue(cfg.has_value('Some Number'))
+		self.assertIn('some_num_key = 123;', cfg.fetch())
+
+		cfg.set_value('Max Players', '100')
+		self.assertEqual(100, cfg.get_value('Max Players'))
+		self.assertIn('maxPlayers = 100;', cfg.fetch())
+
+		cfg.set_value('MOTD', ['Line 1', 'Line 2'])
+		self.assertEqual(['Line 1', 'Line 2'], cfg.get_value('MOTD'))
+		self.assertIn('motd[] = {"Line 1", "Line 2"};', cfg.fetch())
 
 
 if __name__ == '__main__':

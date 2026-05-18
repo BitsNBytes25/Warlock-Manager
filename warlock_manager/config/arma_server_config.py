@@ -228,8 +228,9 @@ class ArmaServerConfig(BaseConfig):
 		else:
 			line_type = 'raw'
 
-		if line_type == 'array':
+		if line_type == 'array' and isinstance(line_val, str):
 			# Use JSON to translate objects to native data
+			# This only applies if the value is a string, otherwise it should be a list already.
 			in_quote = False
 			cleaned_string = []
 			for idx, char in enumerate(line_val):
