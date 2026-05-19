@@ -135,37 +135,43 @@ class TestArma3Config(unittest.TestCase):
 			'name': 'Item 1',
 			'key': 'item[]/0',
 			'type': 'int',
+			'default': 1,
 			'options': (0, 1)
 		})
 		cfg.add_option({
 			'name': 'Item 2',
 			'key': 'item[]/1',
 			'type': 'int',
+			'default': 1,
 			'options': (0, 1)
 		})
 		cfg.add_option({
 			'name': 'Item 3',
 			'key': 'item[]/2',
 			'type': 'int',
+			'default': 1,
 			'options': (0, 1)
 		})
 		cfg.add_option({
 			'name': 'Item 4',
 			'key': 'item[]/3',
 			'type': 'int',
+			'default': 1,
 			'options': (0, 1)
 		})
 
+		# Setting only a single key of a nested group should ensure all members of the group contain default values
 		cfg.set_value('Item 3', 0)
+		self.assertEqual(1, cfg.get_value('Item 1'))
+		self.assertEqual(1, cfg.get_value('Item 2'))
+		self.assertEqual(0, cfg.get_value('Item 3'))
+		self.assertEqual(1, cfg.get_value('Item 4'))
+		self.assertEqual('item[] = {1, 1, 0, 1};', cfg.fetch())
+
+		# The order doesn't matter; they are indexed by the key.
 		cfg.set_value('Item 1', 1)
 		cfg.set_value('Item 4', 1)
 		cfg.set_value('Item 2', 0)
-
-		self.assertEqual(1, cfg.get_value('Item 1'))
-		self.assertEqual(0, cfg.get_value('Item 2'))
-		self.assertEqual(0, cfg.get_value('Item 3'))
-		self.assertEqual(1, cfg.get_value('Item 4'))
-
 		self.assertEqual('item[] = {1, 0, 0, 1};', cfg.fetch())
 
 

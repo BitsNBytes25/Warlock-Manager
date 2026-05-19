@@ -99,14 +99,12 @@ class ArmaServerConfig(BaseConfig):
 				index = self._key_index[parent_key]
 				current = self.data[index]['value']
 				if not isinstance(current, list):
-					current = []
-				if len(current) <= parent_index:
-					current.extend([None] * (parent_index - len(current) + 1))
+					current = self._create_default_nested(parent_key)
 				current[parent_index] = value
 				self.data[index]['value'] = current
 			except KeyError:
 				# Doesn't exist, create a new one.
-				current = []
+				current = self._create_default_nested(parent_key)
 				current[parent_index] = value
 
 				self._parse_value(parent_key, current)
@@ -126,6 +124,33 @@ class ArmaServerConfig(BaseConfig):
 				self.data[index]['val_type'] = 'array'
 			elif opt.val_type == 'str':
 				self.data[index]['val_type'] = 'str'
+
+	def _create_default_nested(self, parent_key):
+		"""
+		Create the default values for a given parent key
+
+		Useful because the game expects all values to be present for a given string if it's set.
+
+		:param parent_key:
+		:return:
+		"""
+		highest_index = 0
+		value = {}
+		for key, name in self._keys.items():
+			if key.startswith(parent_key + '/'):
+				index = int(key.split('/')[1])
+				opt = self.options[name]
+				default = opt.default
+				highest_index = max(highest_index, index)
+				value[index] = default
+		# We need a simple ordered list, ensuring any skipped keys are present.
+		ret = []
+		for idx in range(highest_index + 1):
+			if idx in value:
+				ret.append(value[idx])
+			else:
+				ret.append(None)
+		return ret
 
 	def has_value(self, name: str) -> bool:
 		"""
