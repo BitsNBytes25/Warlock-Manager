@@ -10,7 +10,6 @@ from warlock_manager.libs.utils import ensure_file_parent_exists, ensure_file_ow
 
 class ArmaServerConfig(BaseConfig):
 	def __init__(self, group_name: str, path: str):
-		super().__init__(group_name)
 		self.path = path
 		self.group = group_name
 		self.data = []
@@ -20,6 +19,7 @@ class ArmaServerConfig(BaseConfig):
 		self.kv_regex = re.compile(r'^([a-zA-Z0-9_\[\]]+)\s*=\s*(.*?)\s*;(?:\s*//(.*))?$')
 		# Match multi-line values, common with array values
 		self.k_regex = re.compile(r'^([a-zA-Z0-9_\[\]]+)\s*=\s*(?:({\s*))?(?:\s*//(.*))?$')
+		super().__init__(group_name)
 
 	def add_option(self, option_dict: dict):
 		"""
