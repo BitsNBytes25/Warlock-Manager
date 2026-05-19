@@ -129,6 +129,45 @@ class TestArma3Config(unittest.TestCase):
 		self.assertEqual(['Line 1', 'Line 2'], cfg.get_value('MOTD'))
 		self.assertIn('motd[] = {"Line 1", "Line 2"};', cfg.fetch())
 
+	def test_complex_keys(self):
+		cfg = ArmaServerConfig('test', '/tmp/nonexistent_test_file_xyz123.cfg')
+		cfg.add_option({
+			'name': 'Item 1',
+			'key': 'item[]/0',
+			'type': 'int',
+			'options': (0, 1)
+		})
+		cfg.add_option({
+			'name': 'Item 2',
+			'key': 'item[]/1',
+			'type': 'int',
+			'options': (0, 1)
+		})
+		cfg.add_option({
+			'name': 'Item 3',
+			'key': 'item[]/2',
+			'type': 'int',
+			'options': (0, 1)
+		})
+		cfg.add_option({
+			'name': 'Item 4',
+			'key': 'item[]/3',
+			'type': 'int',
+			'options': (0, 1)
+		})
+
+		cfg.set_value('Item 3', 0)
+		cfg.set_value('Item 1', 1)
+		cfg.set_value('Item 4', 1)
+		cfg.set_value('Item 2', 0)
+
+		self.assertEqual(1, cfg.get_value('Item 1'))
+		self.assertEqual(0, cfg.get_value('Item 2'))
+		self.assertEqual(0, cfg.get_value('Item 3'))
+		self.assertEqual(1, cfg.get_value('Item 4'))
+
+		self.assertEqual('item[] = {1, 0, 0, 1};', cfg.fetch())
+
 
 if __name__ == '__main__':
 	unittest.main()

@@ -14,11 +14,31 @@ class ArmaServerConfig(BaseConfig):
 		self.path = path
 		self.group = group_name
 		self.data = []
-		self._index_cache = {}
+		self._name_index = {}
+		self._key_index = {}
 		# Match standard lines: key = value;
 		self.kv_regex = re.compile(r'^([a-zA-Z0-9_\[\]]+)\s*=\s*(.*?)\s*;(?:\s*//(.*))?$')
 		# Match multi-line values, common with array values
 		self.k_regex = re.compile(r'^([a-zA-Z0-9_\[\]]+)\s*=\s*(?:({\s*))?(?:\s*//(.*))?$')
+
+	def add_option(self, option_dict: dict):
+		"""
+		Add a configuration option to the available list
+
+		:param name:
+		:param section:
+		:param key:
+		:param default:
+		:param val_type:
+		:param help_text:
+		:return:
+		"""
+		super().add_option(option_dict)
+
+		if '/' in option_dict['key']:
+			# Also ensure the parent key is present.
+			base_key = option_dict['key'].split('/')[0]
+			self._store_data(base_key, '', 'array')
 
 	def get_value(self, name: str) -> Union[str, int, bool]:
 		"""
@@ -33,12 +53,27 @@ class ArmaServerConfig(BaseConfig):
 
 		opt = self.options[name]
 
-		# The lookup cache should contain an index if it exists, else use the default.
-		try:
-			index = self._index_cache[name]
-			val = self.data[index]['value']
-		except KeyError:
-			val = opt.default
+		if '/' in opt.key:
+			# This is a nested key, pull the parent value
+			parent_key = opt.key.split('/')[0].lower()
+			parent_index = int(opt.key.split('/')[1])
+
+			try:
+				index = self._key_index[parent_key]
+				current = self.data[index]['value']
+				if not isinstance(current, list):
+					val = opt.default
+				else:
+					val = current[parent_index]
+			except (IndexError, KeyError):
+				val = opt.default
+		else:
+			# The lookup cache should contain an index if it exists, else use the default.
+			try:
+				index = self._name_index[name]
+				val = self.data[index]['value']
+			except KeyError:
+				val = opt.default
 
 		return opt.to_system_type(val)
 
@@ -56,21 +91,41 @@ class ArmaServerConfig(BaseConfig):
 
 		opt = self.options[name]
 
-		# The lookup cache should contain an index if it exists, else use the default.
-		try:
-			index = self._index_cache[name]
-			self.data[index]['value'] = value
-		except KeyError:
-			# Doesn't exist, create a new one.
-			self._parse_value(opt.key, value)
+		if '/' in opt.key:
+			# This is a nested key, pull the parent value
+			parent_key = opt.key.split('/')[0].lower()
+			parent_index = int(opt.key.split('/')[1])
+			try:
+				index = self._key_index[parent_key]
+				current = self.data[index]['value']
+				if not isinstance(current, list):
+					current = []
+				if len(current) <= parent_index:
+					current.extend([None] * (parent_index - len(current) + 1))
+				current[parent_index] = value
+				self.data[index]['value'] = current
+			except KeyError:
+				# Doesn't exist, create a new one.
+				current = []
+				current[parent_index] = value
 
-			# Set the mapped type based on the value
-			index = self._index_cache[name]
+				self._parse_value(parent_key, current)
+		else:
+			# The lookup cache should contain an index if it exists, else use the default.
+			try:
+				index = self._name_index[name]
+				self.data[index]['value'] = value
+			except KeyError:
+				# Doesn't exist, create a new one.
+				self._parse_value(opt.key, value)
 
-		if self.data[index]['key'].endswith('[]') and isinstance(value, list):
-			self.data[index]['val_type'] = 'array'
-		elif opt.val_type == 'str':
-			self.data[index]['val_type'] = 'str'
+				# Set the mapped type based on the value
+				index = self._name_index[name]
+
+			if self.data[index]['key'].endswith('[]') and isinstance(value, list):
+				self.data[index]['val_type'] = 'array'
+			elif opt.val_type == 'str':
+				self.data[index]['val_type'] = 'str'
 
 	def has_value(self, name: str) -> bool:
 		"""
@@ -83,7 +138,7 @@ class ArmaServerConfig(BaseConfig):
 			return False
 
 		try:
-			index = self._index_cache[name]
+			index = self._name_index[name]
 			return self.data[index]['value'] != ''
 		except KeyError:
 			# Doesn't exist
@@ -254,12 +309,25 @@ class ArmaServerConfig(BaseConfig):
 				# Remap to raw to prevent modifications and preserve saves
 				line_type = 'raw'
 
+		self._store_data(line_key, line_val, line_type, line_comment)
+
+	def _store_data(self, line_key: str, line_val: str, line_type: str, line_comment: str = None):
+		# Check if this key is already recorded.
+		try:
+			lookup_key = self._key_index[line_key.lower()]
+			self.data[lookup_key]['value'] = line_val
+			return
+		except KeyError:
+			pass
+
 		# Record an index if this is a mapped key
 		try:
 			lookup_name = self._keys[line_key.lower()]
-			self._index_cache[lookup_name] = len(self.data)
+			self._name_index[lookup_name] = len(self.data)
 		except KeyError:
 			pass
+
+		self._key_index[line_key.lower()] = len(self.data)
 
 		self.data.append({
 			'type': 'keyvalue',
