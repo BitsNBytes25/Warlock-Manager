@@ -3,7 +3,7 @@ import sys
 
 from warlock_manager.nexus.nexus import Nexus
 from warlock_manager.libs.meta import get_meta
-from warlock_manager.libs.get_wan_ip import get_wan_ip
+from warlock_manager.libs.ip import get_wan_ip
 from warlock_manager.libs.tui import print_header, Table, print_subheader, prompt_yn, prompt_text, prompt_options, \
 	prompt_long_text
 from warlock_manager.apps.base_app import BaseApp

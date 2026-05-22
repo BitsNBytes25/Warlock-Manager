@@ -25,7 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a get_local_ip function
+- Add get_local_ip in module ip to return the default IP of the machine
+- Add get_local_ips in module ip to return all local IPs on the machine
 - Add BaseApp.has_option to check if an app has a given option
 - Add support for authenticated Steam installs
 - Add Arma3 server configuration parser
@@ -37,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration fields marked as "text" now render with the full text editor
 
 ### Deprecated
+
+- get_wan_ip has moved to the new warlock_manager.ip module
 
 ### Removed
 
