@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add BaseApp.has_option to check if an app has a given option
 - Add support for authenticated Steam installs
 - Add Arma3 server configuration parser
+- Add random_passphrase to warlock_manager.libs.utils for generating a random passphrase
+- Add random_string to warlock_manager.libs.utils for generating a random password
 
 ### Changed
 
