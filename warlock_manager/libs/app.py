@@ -3,7 +3,7 @@ import sys
 
 from warlock_manager.nexus.nexus import Nexus
 from warlock_manager.libs.meta import get_meta
-from warlock_manager.libs.get_wan_ip import get_wan_ip
+from warlock_manager.libs.ip import get_wan_ip
 from warlock_manager.libs.tui import print_header, Table, print_subheader, prompt_yn, prompt_text, prompt_options, \
 	prompt_long_text
 from warlock_manager.apps.base_app import BaseApp
@@ -78,6 +78,8 @@ def menu_config_option(source: BaseApp | BaseService, option: str):
 		new_val = prompt_yn(prompt=option, default='y' if val_default else 'n')
 	elif val_opts:
 		new_val = prompt_options(options=val_opts, default=val_default)
+	elif val_type == 'text':
+		new_val = prompt_long_text(prompt=option, default=val_default)
 	else:
 		new_val = prompt_text(prefill=True, default=str(val_default))
 

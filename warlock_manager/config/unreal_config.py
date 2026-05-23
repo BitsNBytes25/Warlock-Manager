@@ -1,10 +1,10 @@
-import sys
 import os
 import re
 import tempfile
 from typing import Union
 
 from warlock_manager.config.base_config import BaseConfig
+from warlock_manager.libs.logger import logger
 
 
 class UnrealConfig(BaseConfig):
@@ -79,7 +79,7 @@ class UnrealConfig(BaseConfig):
 		:return:
 		"""
 		if name not in self.options:
-			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
+			logger.error('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)))
 			return ''
 
 		opt = self.options[name]
@@ -169,7 +169,7 @@ class UnrealConfig(BaseConfig):
 		:return:
 		"""
 		if name not in self.options:
-			print('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)), file=sys.stderr)
+			logger.error('Invalid option: %s, not present in %s configuration!' % (name, os.path.basename(self.path)))
 			return
 
 		opt = self.options[name]

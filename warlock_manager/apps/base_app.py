@@ -140,6 +140,19 @@ class BaseApp(ABC):
 
 		return opts
 
+	def has_option(self, option: str) -> bool:
+		"""
+		Check if there is an option defined with the given name
+
+		:param option:
+		:return:
+		"""
+		for config in self.configs.values():
+			if option in list(config.options.keys()):
+				return True
+
+		return False
+
 	def get_option_value(self, option: str) -> str | int | bool:
 		"""
 		Get a configuration option from the game config

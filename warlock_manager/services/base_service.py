@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 	from warlock_manager.mods.base_mod import BaseMod
 
 from warlock_manager.apps.base_app import BaseApp
-from warlock_manager.libs.get_wan_ip import get_wan_ip
+from warlock_manager.libs.ip import get_wan_ip
 from warlock_manager.libs.tui import prompt_yn, prompt_text
 from warlock_manager.libs.cmd import Cmd, BackgroundCmd
 from warlock_manager.libs.ports import get_listening_port

@@ -21,6 +21,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.13] - 2026-05-23
+
+### Added
+
+- Add get_local_ip in module ip to return the default IP of the machine
+- Add get_local_ips in module ip to return all local IPs on the machine
+- Add BaseApp.has_option to check if an app has a given option
+- Add support for authenticated Steam installs
+- Add Arma3 server configuration parser
+- Add random_passphrase to warlock_manager.libs.utils for generating a random passphrase
+- Add random_string to warlock_manager.libs.utils for generating a random password
+
+### Changed
+
+- Adjust get_wan_ip to not require Union
+- Switch configuration loaders to use logger instead of print messages
+- Configuration fields marked as "text" now render with the full text editor
+
+### Deprecated
+
+- get_wan_ip has moved to the new warlock_manager.ip module
+
+
 ## [2.2.12] - 2026-05-08
 
 ### Fixed
@@ -383,6 +406,7 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.2.13**: Support for Arma3, better passwords, and local IP lookups
 - **v2.2.12**: Bug fix for player messages on restarts
 - **v2.2.11**: UI fixes for mod management in TUI
 - **v2.2.10**: Migration fixes
@@ -406,6 +430,7 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.13]: https://pypi.org/project/warlock-manager/2.2.13
 [2.2.12]: https://pypi.org/project/warlock-manager/2.2.12
 [2.2.11]: https://pypi.org/project/warlock-manager/2.2.11
 [2.2.10]: https://pypi.org/project/warlock-manager/2.2.10

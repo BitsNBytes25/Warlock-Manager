@@ -3,6 +3,7 @@ import subprocess
 import json
 import time
 import pwd
+import pty
 
 from warlock_manager.libs import cache
 from warlock_manager.libs.logger import logger
@@ -313,6 +314,9 @@ class Cmd:
 class PipeCmd(Cmd):
 	"""
 	Convenience wrapper for piping command output to a parent process
+
+	This class does NOT wait for processes to complete and allows for
+	realtime parsing of output.
 	"""
 
 	def run(self):
@@ -366,6 +370,37 @@ class BackgroundCmd(Cmd):
 					stdout=subprocess.DEVNULL,
 					stderr=subprocess.DEVNULL
 				)
+			except FileNotFoundError as e:
+				self.result = CmdFakeResponse('', str(e), 127)
+			except OSError as e:
+				self.result = CmdFakeResponse('', str(e), 1)
+
+		return self.result
+
+
+class PtyCmd(Cmd):
+	"""
+	Provides a pseudo-terminal for interactive commands.
+
+	Useful for some commands which require a TTY for user interaction.
+	NOT recommended for use, especially with automated tasks, but sometimes required.
+	"""
+
+	def run(self):
+		"""
+		Run the command in the background using nohup. Caches the result so subsequent calls don't re-run the command.
+
+		:return:
+		"""
+		if self.result is None:
+
+			if self.cacheable is not False:
+				logger.warning('Pty commands cannot be cached!')
+
+			try:
+				logger.debug('Running PTY command: %s' % ' '.join(self.cmd))
+				return_code = pty.spawn(self.cmd)
+				self.result = CmdFakeResponse('', '', return_code)
 			except FileNotFoundError as e:
 				self.result = CmdFakeResponse('', str(e), 127)
 			except OSError as e:

@@ -4,6 +4,7 @@ from typing import Union
 import yaml
 from abc import ABC
 from warlock_manager.config.config_key import ConfigKey, config_types
+from warlock_manager.libs.logger import logger
 
 
 class BaseConfig(ABC):
@@ -66,7 +67,7 @@ class BaseConfig(ABC):
 		"""
 		opt = self.get_config(name)
 		if opt is None:
-			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
+			logger.error('Invalid option: %s, not available in configuration!' % (name, ))
 			return ''
 
 		if opt.val_type == 'bool':
@@ -137,7 +138,7 @@ class BaseConfig(ABC):
 		"""
 		opt = self.get_config(name)
 		if opt is None:
-			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
+			logger.error('Invalid option: %s, not available in configuration!' % (name, ))
 			return ''
 
 		return opt.to_system_type(opt.default)
@@ -151,7 +152,7 @@ class BaseConfig(ABC):
 		"""
 		opt = self.get_config(name)
 		if opt is None:
-			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
+			logger.error('Invalid option: %s, not available in configuration!' % (name, ))
 			return ''
 
 		return opt.val_type
@@ -165,7 +166,7 @@ class BaseConfig(ABC):
 		"""
 		opt = self.get_config(name)
 		if opt is None:
-			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
+			logger.error('Invalid option: %s, not available in configuration!' % (name, ))
 			return ''
 
 		return opt.help
@@ -179,7 +180,7 @@ class BaseConfig(ABC):
 		"""
 		opt = self.get_config(name)
 		if opt is None:
-			print('Invalid option: %s, not available in configuration!' % (name, ), file=sys.stderr)
+			logger.error('Invalid option: %s, not available in configuration!' % (name, ))
 			return None
 
 		return opt.options
