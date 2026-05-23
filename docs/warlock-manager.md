@@ -158,7 +158,7 @@ def find_mods(cls, source: 'BaseService',
               mod_lookup: str) -> list['WarlockNexusMod']
 ```
 
-Search for a mod via Warlock.Nexus, must be a sponsor to use this.
+Search for a mod via Warlock.Nexus
 
 **Arguments**:
 
@@ -173,13 +173,67 @@ def get_mod(cls, source: 'BaseService', provider: str | None,
             mod_id: str | int) -> 'WarlockNexusMod | None'
 ```
 
-Get a specific mod by ID, must be a sponsor to use this.
+Get a specific mod by ID
 
 **Arguments**:
 
 - `source`: Source game service to use for reference
 - `provider`: Mod provider, e.g. 'curseforge'
 - `mod_id`: Mod ID
+
+#### cli\_formatter
+
+```python
+def cli_formatter(data: BaseConfig,
+                  section: str = 'flag',
+                  prefix: str = '-',
+                  sep: str = ' ',
+                  joiner: str = ' ',
+                  true_value: str | bool = 'True',
+                  false_value: str | bool = 'False') -> str
+```
+
+Format a given Configuration object as CLI arguments.
+
+## True/False Formatting
+
+The most complicated part of this is handling true/false boolean values.
+
+The default is to render bool TRUE values as -key_name=True and bool FALSE values as -key_name=False
+
+Render bool TRUE values as -key_name and bool FALSE values are omitted completely
+
+```python
+cli_formatter(..., prefix='-', true_value=True, false_value=False)
+```
+
+The inverse is possible too, to omit TRUE values and only render FALSE values.
+
+```python
+cli_formatter(..., prefix='-', true_value=False, false_value=True)
+```
+
+Render bool TRUE values as -key_name=true and bool FALSE values as -key_name=false
+
+```python
+cli_formatter(..., prefix='-', true_value='true', false_value='false')
+```
+
+Render bool TRUE values as ?key_name:YUP and bool FALSE values as ?key_name:LULZNOPE
+
+```python
+cli_formatter(..., prefix='?', sep=':', true_value='YUP', false_value='LULZNOPE')
+```
+
+**Arguments**:
+
+- `data`: 
+- `section`: 
+- `prefix`: 
+- `sep`: 
+- `joiner`: 
+- `true_value`: 
+- `false_value`: 
 
 #### get\_meta
 
@@ -496,7 +550,7 @@ Initialize a new command wrapper with the given command list.
 #### sudo
 
 ```python
-def sudo(runas: str | int)
+def sudo(runas: str | int) -> 'Cmd'
 ```
 
 Run this command as another user using sudo.
@@ -513,7 +567,7 @@ If the requested user is the same as the current script runner, no sudo prefix w
 #### use\_stdout
 
 ```python
-def use_stdout()
+def use_stdout() -> 'Cmd'
 ```
 
 Set this command to use stdout for output instead of stderr.
@@ -522,7 +576,7 @@ Set this command to use stdout for output instead of stderr.
 #### use\_stderr
 
 ```python
-def use_stderr()
+def use_stderr() -> 'Cmd'
 ```
 
 Set this command to use stderr for output instead of stdout.
@@ -531,7 +585,7 @@ Set this command to use stderr for output instead of stdout.
 #### stream\_output
 
 ```python
-def stream_output()
+def stream_output() -> 'Cmd'
 ```
 
 Set this command to stream to stdout/stderr directly.  Useful for long-running commands.
@@ -540,7 +594,7 @@ Set this command to stream to stdout/stderr directly.  Useful for long-running c
 #### is\_cacheable
 
 ```python
-def is_cacheable(expires: int = 3600)
+def is_cacheable(expires: int = 3600) -> 'Cmd'
 ```
 
 Set this command as cacheable for N seconds.
@@ -552,7 +606,7 @@ Set this command as cacheable for N seconds.
 #### is\_memory\_cacheable
 
 ```python
-def is_memory_cacheable(expires: int = 2)
+def is_memory_cacheable(expires: int = 2) -> 'Cmd'
 ```
 
 Set this command as cacheable in memory for N seconds.
@@ -560,6 +614,18 @@ Set this command as cacheable in memory for N seconds.
 **Arguments**:
 
 - `expires`: 
+
+#### cwd
+
+```python
+def cwd(path: str | None) -> 'Cmd'
+```
+
+Set the current working directory for this command.
+
+**Arguments**:
+
+- `path`: 
 
 #### exists
 
@@ -633,7 +699,7 @@ Run the command and capture the result. Caches the result so subsequent calls do
 #### extend
 
 ```python
-def extend(args: list)
+def extend(args: list) -> 'Cmd'
 ```
 
 Extend the command with additional arguments.
@@ -645,7 +711,7 @@ Extend the command with additional arguments.
 #### append
 
 ```python
-def append(arg: str)
+def append(arg: str) -> 'Cmd'
 ```
 
 Append a single argument to the command.
@@ -653,6 +719,26 @@ Append a single argument to the command.
 **Arguments**:
 
 - `arg`: 
+
+## PipeCmd Objects
+
+```python
+class PipeCmd(Cmd)
+```
+
+Convenience wrapper for piping command output to a parent process
+
+This class does NOT wait for processes to complete and allows for
+realtime parsing of output.
+
+#### run
+
+```python
+def run()
+```
+
+Run the command in the background using nohup. Caches the result so subsequent calls don't re-run the command.
+
 
 ## BackgroundCmd Objects
 
@@ -671,10 +757,67 @@ def run()
 Run the command in the background using nohup. Caches the result so subsequent calls don't re-run the command.
 
 
+## PtyCmd Objects
+
+```python
+class PtyCmd(Cmd)
+```
+
+Provides a pseudo-terminal for interactive commands.
+
+Useful for some commands which require a TTY for user interaction.
+NOT recommended for use, especially with automated tasks, but sometimes required.
+
+#### run
+
+```python
+def run()
+```
+
+Run the command in the background using nohup. Caches the result so subsequent calls don't re-run the command.
+
+
+## ClassNameFilter Objects
+
+```python
+class ClassNameFilter(logging.Filter)
+```
+
+A filter that traverses the call stack to find the 'self' instance
+of the caller and attaches its class name to the log record.
+
+#### setup\_logger
+
+```python
+def setup_logger(name: str = "warlock") -> logging.Logger
+```
+
+Configures and returns a named logger with the ClassNameFilter attached.
+
+**Arguments**:
+
+- `name`: The name of the logger to configure.
+
+**Returns**:
+
+A configured logging.Logger instance.
+
 #### get\_app\_directory
 
 ```python
+@deprecated('Please use utils.get_base_directory instead to avoid confusion')
 def get_app_directory() -> str
+```
+
+Get the base directory for this game installation.
+
+This directory usually will contain manage.py, AppFiles, Backups, and other related files.
+
+
+#### get\_base\_directory
+
+```python
+def get_base_directory() -> str
 ```
 
 Get the base directory for this game installation.
@@ -748,17 +891,28 @@ A replacement of os.makedirs, but also sets permissions as it creates the direct
 
 - `target_dir`: 
 
-#### get\_wan\_ip
+#### random\_string
 
 ```python
-def get_wan_ip() -> Union[str, None]
+def random_string(length: int = 12) -> str
 ```
 
-Get the external IP address of this server
+Generate a random string consisting of letters and numbers of a given length.
 
-**Returns**:
+Similarly-looking characters such as "0" and "O" are excluded.
 
-str: The external IP address as a string, or None if it cannot be determined
+**Arguments**:
+
+- `length`: 
+
+#### random\_passphrase
+
+```python
+def random_passphrase() -> str
+```
+
+https://xkcd.com/936/
+
 
 #### print\_header
 
@@ -900,6 +1054,42 @@ def render()
 Render the table with the given list of rows
 
 
+#### get\_local\_ip
+
+```python
+def get_local_ip() -> str | None
+```
+
+Get the local IP address used for global communication
+
+Connects to a known external address (like Google's DNS server)
+and retrieves the local IP address associated with that connection.
+This is generally more reliable than just using socket.gethostbyname(socket.gethostname()).
+
+#### get\_local\_ips
+
+```python
+def get_local_ips() -> list[str]
+```
+
+Get a list of all local IP addresses
+
+**Returns**:
+
+List of all IP addresses on the local system
+
+#### get\_wan\_ip
+
+```python
+def get_wan_ip() -> str | None
+```
+
+Get the external (WAN) IP address of this server
+
+**Returns**:
+
+str: The external IP address as a string, or None if it cannot be determined
+
 ## Firewall Objects
 
 ```python
@@ -943,7 +1133,7 @@ Checks for UFW, Firewalld, and iptables in that order.
 
 ```python
 @classmethod
-def allow(cls, port: int, protocol: str = 'tcp', comment: str = None) -> None
+def allow(cls, port: int, protocol: str = 'tcp', comment: str = None) -> bool
 ```
 
 Allows a specific port through the system's firewall.
@@ -959,7 +1149,7 @@ Supports UFW, Firewalld, and iptables.
 
 ```python
 @classmethod
-def remove(cls, port: int, protocol: str = 'tcp') -> None
+def remove(cls, port: int, protocol: str = 'tcp') -> bool
 ```
 
 Removes a specific port from the system's firewall.
@@ -1051,6 +1241,18 @@ and subsequent calls pull from that cache for a time.
 **Returns**:
 
 The JSON data as a dictionary
+
+#### get\_proton\_paths
+
+```python
+def get_proton_paths() -> list[str]
+```
+
+Get a list of all Proton executable paths available on the system using alternatives.
+
+**Returns**:
+
+A list of paths to Proton executables
 
 #### get\_java\_paths
 
@@ -1399,6 +1601,29 @@ Ensure that a configuration option has a value set, using the default if not
 
 - `option`: 
 
+#### run\_migrations
+
+```python
+def run_migrations()
+```
+
+Run any migrations from the Migrations directory
+
+Each migration is expected to be a JSON file with a list of options and their values.
+For example:
+
+```json
+# Migrations/some-service.json
+[
+  {"option": "Key 1", "value": "Value 1"},
+  ...
+]
+```
+
+This is meant to be directly compatible with `get-configs` to ensure configurations persist
+across upgrades which may implement different configuration backends
+
+
 #### get\_name
 
 ```python
@@ -1485,6 +1710,17 @@ def get_pid() -> int
 ```
 
 Get the PID of the running service, or 0 if not running
+
+
+#### get\_pids
+
+```python
+def get_pids() -> list
+```
+
+Get all Process IDs associated with this service
+
+By default just contains the service and game PID, but more can be added as necessary.
 
 
 #### get\_process\_status
@@ -1851,7 +2087,7 @@ but you want to give players a chance to log off safely before the server goes d
 #### post\_update
 
 ```python
-def post_update()
+def post_update() -> bool
 ```
 
 Perform any post-update actions needed for this game
@@ -1946,6 +2182,15 @@ def get_info() -> dict
 Get a dictionary of information about this service for display in the TUI
 
 This is used by Warlock to retrieve information about a given service.
+
+
+#### build\_environment\_file
+
+```python
+def build_environment_file()
+```
+
+Build the environment file for this service
 
 
 #### build\_systemd\_config
@@ -2423,7 +2668,12 @@ dict, parsed manifest data
 class SteamApp(BaseApp, ABC)
 ```
 
-Game application manager
+Game application manager for Steam-based games
+
+Expects the game to have the following configuration keys:
+
+* Steam Branch - Branch to install the game from (default: public)
+* Steam Branch Password - Password for the Steam branch (optional)
 
 #### get\_app\_details
 
@@ -2471,6 +2721,18 @@ def get_steam_branches() -> list[str]
 Get the list of branches available for this game on SteamCMD
 
 
+#### get\_option\_options
+
+```python
+def get_option_options(option: str)
+```
+
+Get the list of possible options for a configuration option
+
+**Arguments**:
+
+- `option`: 
+
 #### check\_update\_available
 
 ```python
@@ -2483,7 +2745,7 @@ Check if a SteamCMD update is available for this game
 #### update
 
 ```python
-def update()
+def update() -> bool
 ```
 
 Update the game server via SteamCMD
@@ -2577,6 +2839,18 @@ def get_options() -> list
 
 Get a list of available configuration options for this game
 
+
+#### has\_option
+
+```python
+def has_option(option: str) -> bool
+```
+
+Check if there is an option defined with the given name
+
+**Arguments**:
+
+- `option`: 
 
 #### get\_option\_value
 
@@ -2689,6 +2963,29 @@ Prompt the user to set a configuration option for the game
 **Arguments**:
 
 - `option`: 
+
+#### run\_migrations
+
+```python
+def run_migrations()
+```
+
+Run any migrations from the Migrations directory
+
+Each migration is expected to be a JSON file with a list of options and their values.
+For example:
+
+```json
+# Migrations/_app.json
+[
+  {"option": "Key 1", "value": "Value 1"},
+  ...
+]
+```
+
+This is meant to be directly compatible with `get-configs` to ensure configurations persist
+across upgrades which may implement different configuration backends
+
 
 #### is\_active
 
@@ -2848,7 +3145,7 @@ Send a message to the configured Discord webhook
 #### get\_app\_directory
 
 ```python
-@deprecated("Please use get_app_directory() from utils instead.")
+@deprecated("Please use get_base_directory() from utils instead.")
 def get_app_directory() -> str
 ```
 
@@ -3039,6 +3336,102 @@ def load()
 ```
 
 Load the configuration file from disk
+
+
+#### save
+
+```python
+def save()
+```
+
+Save the configuration file back to disk
+
+
+## ArmaServerConfig Objects
+
+```python
+class ArmaServerConfig(BaseConfig)
+```
+
+#### add\_option
+
+```python
+def add_option(option_dict: dict)
+```
+
+Add a configuration option to the available list
+
+**Arguments**:
+
+- `name`: 
+- `section`: 
+- `key`: 
+- `default`: 
+- `val_type`: 
+- `help_text`: 
+
+#### get\_value
+
+```python
+def get_value(name: str) -> Union[str, int, bool]
+```
+
+Get a configuration option from the config
+
+**Arguments**:
+
+- `name`: Name of the option
+
+#### set\_value
+
+```python
+def set_value(name: str, value: Union[str, int, bool, float, list])
+```
+
+Set a configuration option in the config
+
+**Arguments**:
+
+- `name`: Name of the option
+- `value`: Value to save
+
+#### has\_value
+
+```python
+def has_value(name: str) -> bool
+```
+
+Check if a configuration option has been set
+
+**Arguments**:
+
+- `name`: Name of the option
+
+#### exists
+
+```python
+def exists() -> bool
+```
+
+Check if the config file exists on disk
+
+
+#### load
+
+```python
+def load()
+```
+
+Load the configuration file from disk
+
+
+#### fetch
+
+```python
+def fetch() -> str
+```
+
+Fetch the raw contents of this configuration to be saved back to the disk
 
 
 #### save
