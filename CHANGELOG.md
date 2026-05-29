@@ -21,6 +21,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
+## [2.2.14]
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+- Fix port status detection if ufw is installed but disabled
+
+### Security
+
+
 ## [2.2.13] - 2026-05-23
 
 ### Added

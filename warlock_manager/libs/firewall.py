@@ -213,10 +213,13 @@ class Firewall:
 			iptables_check = Cmd(['iptables', '-L', 'INPUT', '-n'])
 			iptables_check.is_memory_cacheable(3)
 			result = iptables_check.text
+			default_input = False
 			for line in result.splitlines():
+				if line.strip() == 'Chain INPUT (policy ACCEPT)':
+					default_input = True
 				if "ACCEPT" in line and protocol in line and str(port) in line and ("0.0.0.0/0" in line or "anywhere" in line):
 					return True
-			return False
+			return default_input
 
 		else:
 			logger.error('No supported firewall found on the system.')
