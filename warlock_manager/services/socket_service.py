@@ -96,6 +96,7 @@ class SocketService(BaseService, ABC):
 
 		# Don't watch if service is already stopped
 		if self.is_stopped():
+			logger.debug('Service is not running! Not watching journal')
 			return False
 
 		# Thread-safe buffer for process output
@@ -107,7 +108,7 @@ class SocketService(BaseService, ABC):
 			"""Thread function: reads from process and puts lines into the buffer"""
 			try:
 				process = subprocess.Popen(
-					['journalctl', '-u', self.service, '-f', '--no-pager', '--since', 'now'],
+					['journalctl', '-u', self.service, '-f', '--no-pager', '--since', '1 second ago'],
 					stdout=subprocess.PIPE,
 					stderr=subprocess.DEVNULL,
 					encoding='utf-8',
