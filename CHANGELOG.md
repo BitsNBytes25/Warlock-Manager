@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix port status detection if ufw is installed but disabled
+- Fix for socket-based games in watch to look back 1 second for the log
 
 ### Security
 
@@ -423,6 +424,7 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
+- **v2.2.14**: Minor fix for firewall port lookups when UFW is installed but disabled
 - **v2.2.13**: Support for Arma3, better passwords, and local IP lookups
 - **v2.2.12**: Bug fix for player messages on restarts
 - **v2.2.11**: UI fixes for mod management in TUI
@@ -447,6 +449,7 @@ This project is under active development. For the latest features and bug fixes,
 - **v2.0.0**: Major API redesign with service-level operations
 - **v1.0.0**: Initial release with core functionality
 
+[2.2.14]: https://pypi.org/project/warlock-manager/2.2.14
 [2.2.13]: https://pypi.org/project/warlock-manager/2.2.13
 [2.2.12]: https://pypi.org/project/warlock-manager/2.2.12
 [2.2.11]: https://pypi.org/project/warlock-manager/2.2.11
