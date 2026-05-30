@@ -21,22 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
-## [2.2.14]
-
-### Added
-
-### Changed
-
-### Deprecated
-
-### Removed
+## [2.2.14] - 2026-05-29
 
 ### Fixed
 
 - Fix port status detection if ufw is installed but disabled
 - Fix for socket-based games in watch to look back 1 second for the log
-
-### Security
 
 
 ## [2.2.13] - 2026-05-23
@@ -424,7 +414,7 @@ This project is under active development. For the latest features and bug fixes,
 
 ### Version History Summary
 
-- **v2.2.14**: Minor fix for firewall port lookups when UFW is installed but disabled
+- **v2.2.14**: Minor fix for firewall port lookups and socket-based game log watching
 - **v2.2.13**: Support for Arma3, better passwords, and local IP lookups
 - **v2.2.12**: Bug fix for player messages on restarts
 - **v2.2.11**: UI fixes for mod management in TUI
